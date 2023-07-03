@@ -14,6 +14,14 @@ def convert_df(df):
     # IMPORTANT: Cache the conversion to prevent computation on every rerun
     return df.to_csv(index=False).encode('utf-8')
 
+def backend(uploaded_model, df_raw):
+    model = load_pickle(uploaded_model)
+
+    y_hat = model.predict(df_raw)
+    df_raw["predict"] = y_hat
+
+    return df_raw
+
 def main():
     st.title('Predict')
 
@@ -53,19 +61,12 @@ def main():
         uploaded_model = BytesIO(requests.get(url_model).content)
         # r
     
-    model = load_pickle(uploaded_model)
-
-    # df_raw = pd.read_csv(uploaded_file, encoding="utf-8")
-    # st.header('您所上傳的CSV檔內容：')
-    
-
-    y = model.predict(df_raw)
-    df_raw["predict"] = y
+    df_predict = backend(uploaded_model, df_raw)
 
     st.header('預測結果：')
-    st.dataframe(df_raw)
+    st.dataframe(df_predict)
 
-    csv = convert_df(df_raw)
+    csv = convert_df(df_predict)
 
     date = str(datetime.datetime.now()).split(" ")[0]
     result_file = date + "_predict.csv"
