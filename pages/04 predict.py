@@ -7,13 +7,14 @@ import datetime
 from io import BytesIO
 
 
-#%% 包成一整個 backend function: 主要資料處理及視覺化儀表板製作
+
 
 @st.cache_data
 def convert_df(df):
     # IMPORTANT: Cache the conversion to prevent computation on every rerun
     return df.to_csv(index=False).encode('utf-8')
 
+#%% 包成一整個 backend function: 主要資料處理及視覺化儀表板製作
 def backend(uploaded_model, df_raw):
     model = load_pickle(uploaded_model)
 
@@ -22,6 +23,7 @@ def backend(uploaded_model, df_raw):
 
     return df_raw
 
+#%% 頁面呈現
 def main():
     st.title('Predict')
 

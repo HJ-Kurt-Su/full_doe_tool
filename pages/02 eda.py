@@ -14,28 +14,32 @@ def convert_df(df):
     # IMPORTANT: Cache the conversion to prevent computation on every rerun
     return df.to_csv(index=False).encode('utf-8')
 
-st.title('EDA (Exploratory Data Analysis) Tool')
+def backend():
+    st.markdown("Under Construction")
 
-st.markdown("#### Author & License:")
+def main():
+    st.title('EDA (Exploratory Data Analysis) Tool')
 
-st.markdown("**Kurt Su** (phononobserver@gmail.com)")
+    st.markdown("#### Author & License:")
 
-st.markdown("**This tool release under [CC BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/) license**")
+    st.markdown("**Kurt Su** (phononobserver@gmail.com)")
 
-st.markdown("               ")
-st.markdown("               ")
+    st.markdown("**This tool release under [CC BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/) license**")
 
+    st.markdown("               ")
+    st.markdown("               ")
 
-# Provide dataframe example & relative url
-data_ex_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
-# st.write("Factor Format Example File [link](%s)" % factor_ex_url)
-st.markdown("### **Data Format Example File [Demo File](%s)**" % data_ex_url)
+    uploaded_csv = st.sidebar.file_uploader("請上傳您的 CSV 檔案", type=["csv"])
 
-uploaded_csv = st.file_uploader('#### 選擇您要上傳的CSV檔')
+    if uploaded_csv is not None:
+        df_raw = pd.read_csv(uploaded_csv, encoding="utf-8")
+        st.header('您所上傳的CSV檔內容：')
 
-if uploaded_csv is not None:
-    df_raw = pd.read_csv(uploaded_csv, encoding="utf-8")
-    st.header('您所上傳的CSV檔內容：')
+    else:
+        url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
+        st.header('未上傳檔案，以下為 Demo：')
+        df_raw = pd.read_csv(url, encoding="utf-8")
+    
     st.dataframe(df_raw)
 
     select_list = list(df_raw.columns)
@@ -54,53 +58,53 @@ if uploaded_csv is not None:
 
     st.markdown("----------------")  
 
-fig_col1, fig_col2 = st.columns(2)
-with fig_col1:
-    # st.markdown("#### **Choose figure type**")
-    fig_type = st.selectbox(
-        "### Choose figure type", 
-        ["box", "violin", "histogram", "pair plot", "interaction(DOE)", "scatter", "bubble", "bubble animate", ],
-    )
-    
-with fig_col2:
-    if uploaded_csv is not None:
+    fig_col1, fig_col2 = st.columns(2)
+    with fig_col1:
+        # st.markdown("#### **Choose figure type**")
+        fig_type = st.selectbox(
+            "### Choose figure type", 
+            ["box", "violin", "histogram", "pair plot", "interaction(DOE)", "scatter", "bubble", "bubble animate", ],
+        )
+        
+    with fig_col2:
+        # if uploaded_csv is not None:
         category = st.selectbox(
             "### Choose category", x_list)
-    
-size_col1, size_col2 = st.columns(2)
-with size_col1:
+        
+    size_col1, size_col2 = st.columns(2)
+    with size_col1:
 
-    fig_width = st.number_input('Figure Width', min_value=640, value=1280, max_value=5120, step=320) 
-    
-with size_col2:
-    fig_height = st.number_input('Figure Height', min_value=480, value=960, max_value=3840, step=240) 
+        fig_width = st.number_input('Figure Width', min_value=640, value=1280, max_value=5120, step=320) 
+        
+    with size_col2:
+        fig_height = st.number_input('Figure Height', min_value=480, value=960, max_value=3840, step=240) 
 
-st.markdown("----------------")  
+    st.markdown("----------------")  
 
-if fig_type == "histogram":
-    # st.markdown("##### Choose ")
-    bins = st.number_input('Choose bins', min_value=5, value=10, max_value=100, step=5) 
+    if fig_type == "histogram":
+        # st.markdown("##### Choose ")
+        bins = st.number_input('Choose bins', min_value=5, value=10, max_value=100, step=5) 
 
-elif fig_type == "pair plot":
-    focus_factor = st.multiselect(
-        "### Choose focus factor", df_raw.columns,
-    )
+    elif fig_type == "pair plot":
+        focus_factor = st.multiselect(
+            "### Choose focus factor", df_raw.columns,
+        )
 
-elif fig_type == "interaction(DOE)":
-    focus_factor = st.multiselect(
-        "### Choose focus factor", x_list,
-    )
+    elif fig_type == "interaction(DOE)":
+        focus_factor = st.multiselect(
+            "### Choose focus factor", x_list,
+        )
 
-elif fig_type in ["bubble", "bubble animate"]:
-    size_var = st.selectbox(
-            "### Choose bubble size", x_list)
-    
-    if fig_type == "bubble animate":
-        animate = st.selectbox(
-            "### Choose animate", x_list)
+    elif fig_type in ["bubble", "bubble animate"]:
+        size_var = st.selectbox(
+                "### Choose bubble size", x_list)
+        
+        if fig_type == "bubble animate":
+            animate = st.selectbox(
+                "### Choose animate", x_list)
 
 
-if st.checkbox('Plot'):
+    # if st.checkbox('Plot'):
     df_plot = df_raw.copy()
 
     color_sequence = ["#65BFA1", "#A4D6C1", "#D5EBE1", "#EBF5EC", "#00A0DF", "#81CDE4", "#BFD9E2"]
@@ -134,7 +138,7 @@ if st.checkbox('Plot'):
     elif fig_type == "pair plot":
         fig = px.scatter_matrix(df_plot, dimensions=focus_factor, color=category, 
                                 color_discrete_sequence=color_sequence, template="plotly_white",
-                             width=fig_width, height=fig_height)
+                            width=fig_width, height=fig_height)
         fig.update_traces(diagonal_visible=False, showupperhalf=False)
 
 
@@ -177,8 +181,8 @@ if st.checkbox('Plot'):
 
 
             fig_scatter = px.scatter(df_interact_plot, x=factor_1, y=y_var, color=factor_2, 
-                                     width=fig_width, height=fig_height,
-                                     )
+                                    width=fig_width, height=fig_height,
+                                    )
             fig_line = px.line(df_interact_group, x=factor_1, y=y_var, color=factor_2, width=fig_width, height=fig_height, markers=True)
             fig = go.Figure(data=fig_scatter.data + fig_line.data)
             fig.update_layout(
@@ -206,7 +210,7 @@ if st.checkbox('Plot'):
 
 
     if fig_type != "pair plot" or fig_type != "interaction(DOE)":
-  
+
         fig.update_layout(
             xaxis_title=x_var,
             yaxis_title=y_var,
@@ -236,3 +240,9 @@ if st.checkbox('Plot'):
                         file_name=fig_file_name,
                         mime='text/html'
                         )
+
+#%% Web App 頁面
+if __name__ == '__main__':
+    main()
+
+# %%
