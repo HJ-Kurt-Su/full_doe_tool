@@ -41,6 +41,8 @@ def main():
         df_raw = pd.read_csv(url, encoding="utf-8")
     
     st.dataframe(df_raw)
+    st.markdown("**Data Description**")
+    st.dataframe(df_raw.describe())
 
     select_list = list(df_raw.columns)
     # select_list
