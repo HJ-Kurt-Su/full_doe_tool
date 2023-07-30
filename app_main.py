@@ -8,4 +8,14 @@ def main():
     st.markdown("**predict**: Predict result with load trained model")
 
 if __name__ == '__main__':
+
+    st.title("Author & License:")
+
+    st.markdown("**Kurt Su** (phononobserver@gmail.com)")
+
+    st.markdown("**This tool release under [CC BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/) license**")
+
+    st.markdown("               ")
+    st.markdown("               ")
+    
     main()

@@ -27,11 +27,11 @@ def backend(uploaded_model, df_raw):
 def main():
     st.title('Predict')
 
-    st.markdown("#### Author & License:")
+    # st.markdown("#### Author & License:")
 
-    st.markdown("**Kurt Su** (phononobserver@gmail.com)")
+    # st.markdown("**Kurt Su** (phononobserver@gmail.com)")
 
-    st.markdown("**This tool release under [CC BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/) license**")
+    # st.markdown("**This tool release under [CC BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/) license**")
 
     st.markdown("               ")
     st.markdown("               ")

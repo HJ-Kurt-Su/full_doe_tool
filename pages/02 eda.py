@@ -6,7 +6,7 @@ import datetime
 import numpy as np
 import io
 import plotly.express as px
-# from plotly.subplots import make_subplots
+from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
 @st.cache_data
@@ -14,104 +14,29 @@ def convert_df(df):
     # IMPORTANT: Cache the conversion to prevent computation on every rerun
     return df.to_csv(index=False).encode('utf-8')
 
-def backend():
-    st.markdown("Under Construction")
 
-def main():
-    st.title('EDA (Exploratory Data Analysis) Tool')
-
-    st.markdown("#### Author & License:")
-
-    st.markdown("**Kurt Su** (phononobserver@gmail.com)")
-
-    st.markdown("**This tool release under [CC BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/) license**")
-
-    st.markdown("               ")
-    st.markdown("               ")
-
-    uploaded_csv = st.sidebar.file_uploader("請上傳您的 CSV 檔案", type=["csv"])
-
-    if uploaded_csv is not None:
-        df_raw = pd.read_csv(uploaded_csv, encoding="utf-8")
-        st.header('您所上傳的CSV檔內容：')
-
+def backend(fig_type, df_plot, para):
+    # para
+    cate_req = para["cate_req"]
+    if cate_req == True:
+        category = para["cate"]
     else:
-        url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
-        st.header('未上傳檔案，以下為 Demo：')
-        df_raw = pd.read_csv(url, encoding="utf-8")
-    
-    st.dataframe(df_raw)
-    st.markdown("**Data Description**")
-    st.dataframe(df_raw.describe())
-
-    select_list = list(df_raw.columns)
-    # select_list
-    y_var = st.selectbox("### Choose y variable", select_list)
-    if not y_var:
-        st.error("Please select one y variable.")
-
-    # response
-    x_list = select_list.copy()
-    x_list.remove(y_var)
-    x_var = st.selectbox(
-        "### Choose x variable", x_list)
-    if not x_var:
-        st.error("Please select one x variable.")
-
-    st.markdown("----------------")  
-
-    fig_col1, fig_col2 = st.columns(2)
-    with fig_col1:
-        # st.markdown("#### **Choose figure type**")
-        fig_type = st.selectbox(
-            "### Choose figure type", 
-            ["box", "violin", "histogram", "pair plot", "interaction(DOE)", "scatter", "bubble", "bubble animate", ],
-        )
-        
-    with fig_col2:
-        # if uploaded_csv is not None:
-        category = st.selectbox(
-            "### Choose category", x_list)
-        
-    size_col1, size_col2 = st.columns(2)
-    with size_col1:
-
-        fig_width = st.number_input('Figure Width', min_value=640, value=1280, max_value=5120, step=320) 
-        
-    with size_col2:
-        fig_height = st.number_input('Figure Height', min_value=480, value=960, max_value=3840, step=240) 
-
-    st.markdown("----------------")  
-
-    if fig_type == "histogram":
-        # st.markdown("##### Choose ")
-        bins = st.number_input('Choose bins', min_value=5, value=10, max_value=100, step=5) 
-
-    elif fig_type == "pair plot":
-        focus_factor = st.multiselect(
-            "### Choose focus factor", df_raw.columns,
-        )
-
-    elif fig_type == "interaction(DOE)":
-        focus_factor = st.multiselect(
-            "### Choose focus factor", x_list,
-        )
-
-    elif fig_type in ["bubble", "bubble animate"]:
-        size_var = st.selectbox(
-                "### Choose bubble size", x_list)
-        
-        if fig_type == "bubble animate":
-            animate = st.selectbox(
-                "### Choose animate", x_list)
+        category = None
 
 
-    # if st.checkbox('Plot'):
-    df_plot = df_raw.copy()
+    fig_width = para["width"]
+    fig_height = para["height"]
 
     color_sequence = ["#65BFA1", "#A4D6C1", "#D5EBE1", "#EBF5EC", "#00A0DF", "#81CDE4", "#BFD9E2"]
     color_sequence = px.colors.qualitative.Pastel
     template = "simple_white"
+
+    if fig_type not in ["pair plot", "histogram"]:
+        fig_type
+        y_var = para["y"]
+    
+    if fig_type not in ["pair plot", "interaction(DOE)"]:
+        x_var = para["x"]
 
 
     if fig_type == "box":
@@ -131,13 +56,15 @@ def main():
                         )
         
     elif fig_type == "histogram":
-        fig = px.histogram(df_plot, x=y_var, nbins=bins, color=category,
+        bins = para["bins"]
+        fig = px.histogram(df_plot, x=x_var, nbins=bins, color=category,
                     color_discrete_sequence=color_sequence, template=template,
                     # range_x=x_range, range_y=y_range,        
                     width=fig_width, height=fig_height
                     )
     
     elif fig_type == "pair plot":
+        focus_factor = para["focus"]
         fig = px.scatter_matrix(df_plot, dimensions=focus_factor, color=category, 
                                 color_discrete_sequence=color_sequence, template="plotly_white",
                             width=fig_width, height=fig_height)
@@ -149,8 +76,14 @@ def main():
             size_var = None
             animate = None
         
-        if fig_type == "bubble":
+        elif fig_type == "bubble":
+            size_var = para["size"]
             animate = None
+        
+        elif fig_type == "bubble animate":
+            size_var = para["size"]
+            animate = para["animate"]
+
             
         fig = px.scatter(df_plot, x=x_var, y=y_var, size=size_var, size_max=45,
                 animation_frame=animate, #animation_group=animate_g, 
@@ -161,57 +94,44 @@ def main():
                 )
 
     elif fig_type == "interaction(DOE)":
+        focus_factor = para["focus"]
         iter_list =  list(itertools.combinations(focus_factor, 2))
-
-        # j=1
+        inter_factor = st.selectbox(
+        "### Select inter-action factor", 
+        iter_list,
+        )
                 
-        for inter_factor in iter_list:
-            inter_factor
-            factor_1 = inter_factor[0]
-            factor_2 = inter_factor[1]
-            # print(list(i).append(y))
-            # print(factor_1)
-            # print(factor_2)
-            select_list = list(inter_factor)
-            select_list.append(y_var)
-            # print(select_list)
+        # for inter_factor in iter_list:
+            
+        # inter_factor
+        factor_1 = inter_factor[0]
+        factor_2 = inter_factor[1]
+
+        select_list = list(inter_factor)
+        select_list.append(y_var)
+
+        df_interact_plot = df_plot[select_list]
+        df_interact_group = df_interact_plot.groupby(list(inter_factor), as_index=False).mean()
+        # color=factor_2, 
+        fig_scatter = px.scatter(df_interact_plot, x=factor_1, y=y_var, 
+                                width=fig_width, height=fig_height,
+                                )
+        fig_line = px.line(df_interact_group, x=factor_1, y=y_var, color=factor_2, width=fig_width, height=fig_height, markers=True)
+        fig = go.Figure(data=fig_scatter.data + fig_line.data)
+        fig.update_layout(
+            autosize=False,
+            width=fig_width,
+            height=fig_height,
+            xaxis_title=factor_1,
+            yaxis_title=y_var,
+            title=factor_2,
+            legend_title=factor_2,
+
+        )
 
 
 
-            df_interact_plot = df_plot[select_list]
-            df_interact_group = df_interact_plot.groupby(list(inter_factor), as_index=False).mean()
-
-
-            fig_scatter = px.scatter(df_interact_plot, x=factor_1, y=y_var, color=factor_2, 
-                                    width=fig_width, height=fig_height,
-                                    )
-            fig_line = px.line(df_interact_group, x=factor_1, y=y_var, color=factor_2, width=fig_width, height=fig_height, markers=True)
-            fig = go.Figure(data=fig_scatter.data + fig_line.data)
-            fig.update_layout(
-                autosize=False,
-                width=fig_width,
-                height=fig_height,
-                xaxis_title=factor_1,
-                yaxis_title=y_var,
-                title=factor_2,
-                legend_title=factor_2,
-                legend_orientation="h",
-                # color_discrete_sequence=color_sequence, template=template
-
-                # margin=dict(
-                #     l=50,
-                #     r=50,
-                #     b=100,
-                #     t=100,
-                #     pad=4
-                # ),
-                # paper_bgcolor="LightSteelBlue",
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-
-
-    if fig_type != "pair plot" or fig_type != "interaction(DOE)":
+    if fig_type not in  ["pair plot", "interaction(DOE)", "histogram"]:
 
         fig.update_layout(
             xaxis_title=x_var,
@@ -226,9 +146,110 @@ def main():
             xaxis = dict(tickfont = dict(size=15))
         )
 
-    if fig_type != "interaction(DOE)":
+    return fig
 
-        st.plotly_chart(fig, use_container_width=True)
+
+
+def main():
+    st.title('EDA (Exploratory Data Analysis) Tool')
+
+    st.markdown("               ")
+    st.markdown("               ")
+
+    uploaded_csv = st.sidebar.file_uploader("請上傳您的 CSV 檔案", type=["csv"])
+
+    if uploaded_csv is not None:
+        df_raw = pd.read_csv(uploaded_csv, encoding="utf-8")
+        st.header('您所上傳的CSV檔內容：')
+
+    else:
+        url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
+        st.header('未上傳檔案，以下為 Demo：')
+        df_raw = pd.read_csv(url, encoding="utf-8")
+    
+    st.dataframe(df_raw)
+    st.markdown("**Data Description**")
+    st.dataframe(df_raw.describe())
+
+    fig_type = st.selectbox(
+        "### Choose figure type", 
+        ["box", "violin", "histogram", "pair plot", "interaction(DOE)", "scatter", "bubble", "bubble animate", ],
+    )
+
+    select_list = list(df_raw.columns)
+
+    para = {}
+    cate_req = st.checkbox('Category Required')
+    para["cate_req"] = cate_req
+    if cate_req == True:
+        category = st.selectbox(
+            "### Choose category", select_list)
+        para["cate"] = category
+
+    if fig_type == "pair plot":
+        
+        focus_factor = st.multiselect(
+            "### Choose focus factor", select_list,
+        )
+        para["focus"] = focus_factor
+
+    else:
+        if fig_type == "histogram":
+            x_var = st.selectbox("## Choose x variable", select_list)
+            para["x"] = x_var
+            bins = st.number_input('Choose bins', min_value=5, value=10, max_value=100, step=5) 
+            para["bins"] = bins
+
+        else:
+            y_var = st.selectbox("## Choose y variable", select_list)
+            para["y"] = y_var
+            if not y_var:
+                st.error("Please select one y variable.")
+
+            x_list = select_list.copy()
+            x_list.remove(y_var)
+
+            if fig_type == "interaction(DOE)":
+                focus_factor = st.multiselect(
+                    "### Choose focus factor", x_list,
+                )
+                para["focus"] = focus_factor
+
+            else: 
+                x_var = st.selectbox(
+                "### Choose x variable", x_list)
+                para["x"] = x_var
+
+                if not x_var:
+                    st.error("Please select one x variable.")
+            
+                if fig_type in ["bubble", "bubble animate"]:
+                    size_var = st.selectbox(
+                            "### Choose bubble size", x_list)
+                    
+                    para["size"] = size_var
+                    if fig_type == "bubble animate":
+                        animate = st.selectbox(
+                            "### Choose animate", x_list)
+                        para["animate"] = animate
+
+    st.markdown("----------------")  
+
+        
+    size_col1, size_col2 = st.columns(2)
+    with size_col1:
+        fig_width = st.number_input('Figure Width', min_value=640, value=1280, max_value=5120, step=320) 
+        para["width"] = fig_width
+    with size_col2:
+        fig_height = st.number_input('Figure Height', min_value=480, value=960, max_value=3840, step=240) 
+        para["height"] = fig_height
+
+    st.markdown("----------------")  
+
+    df_plot = df_raw.copy()
+
+    fig = backend(fig_type, df_plot, para)
+    st.plotly_chart(fig, use_container_width=True)
 
     date = str(datetime.datetime.now()).split(" ")[0]
     mybuff = io.StringIO()
