@@ -52,39 +52,109 @@ def ols_reg(formula, df):
 
 #   return df_qq
 
+def backend(df_reg, formula, fig_size):
+    # df_reg = df_raw.copy()
+
+    result, df_result, model = ols_reg(formula, df_reg)
+
+    alpha = 0.05
+    # f_num = len(result.tvalues)-1
+    # dof = round(f_num/3, 0)
+    dof = result.df_resid
+    t_val = stats.t.ppf(1-alpha/2, dof)
+
+    df_pareto = result.tvalues[1:].abs()
+    df_pareto = df_pareto.sort_values(ascending=True)
+    df_pareto = pd.DataFrame(df_pareto).reset_index(level=0)
+    df_pareto.columns = ["factor", "t-value"]
 
 
-fig_size = [1280, 960]
+    SW, sw_p_val = shapiro(df_result["resid"])
+    # df_qq = acquire_qq_data(df_result["resid"])
 
-st.title('Linear Regression Tool')
+    color_sequence = ["#65BFA1", "#A4D6C1", "#D5EBE1", "#EBF5EC", "#00A0DF", "#81CDE4", "#BFD9E2"]
+    color_sequence = px.colors.qualitative.Pastel
+    template = "simple_white"
 
-st.markdown("#### Author & License:")
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=("yhat-residual-plot (random better)", "residual-histogram-plot (normal distribution better)", 
+                        "redidual-sequence-plot (random better)", "pareto-plot (red line as criteria)"))
 
-st.markdown("**Kurt Su** (phononobserver@gmail.com)")
+    fig.add_trace(go.Scatter(x=df_result["yhat"], y=df_result["resid"], mode="markers", 
+                            marker=dict(color='rgba(19, 166, 255, 0.6)')),
+                row=1, col=1)
 
-st.markdown("**This tool release under [CC BY-NC-SA](https://creativecommons.org/licenses/by-nc-sa/4.0/) license**")
+    fig.add_trace(go.Histogram(x=df_result["resid"],
+                            marker=dict(color='rgba(19, 166, 255, 0.6)')),
+                row=1, col=2)
 
-st.markdown("               ")
-st.markdown("               ")
+    fig.add_trace(go.Scatter(y=df_result["resid"], mode="lines+markers",
+                            marker=dict(color='rgba(19, 166, 255, 0.6)')),
+                row=2, col=1)
 
-# Provide dataframe example & relative url
-reg_ex_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
-# st.write("Factor Format Example File [link](%s)" % factor_ex_url)
-st.markdown("### **Regression Data Format Example File [Demo File](%s)**" % reg_ex_url)
+    fig.add_trace(go.Bar(x=df_pareto["t-value"], y=df_pareto["factor"], orientation='h', width=0.8,
+                        marker=dict(color='rgba(19, 166, 255, 0.6)')
+                        ),
+                row=2, col=2)
+    fig.add_vline(x=t_val, line_width=2, line_dash='dash', line_color='red',
+                row=2, col=2)
+
+    # fig.add_trace(go.Scatter(x=df_qq["x_line"], y=df_qq["y_line"], mode="lines"),
+    #               row=2, col=2)
+
+    fig.update_xaxes(title_text="Y-hat", row=1, col=1)
+    fig.update_yaxes(title_text="Residual", row=1, col=1)
+
+    fig.update_xaxes(title_text="Residual", row=1, col=2)
+    fig.update_yaxes(title_text="Count", row=1, col=2)
+
+    fig.update_xaxes(title_text="Sequence", row=2, col=1)
+    fig.update_yaxes(title_text="Residual", row=2, col=1)
+
+    fig.update_xaxes(title_text="Factor Importance", row=2, col=2)
+    fig.update_yaxes(title_text="Factor", row=2, col=2)
+
+    fig.update_layout(height=fig_size[1], width=fig_size[0],
+                    title_text="Model Check Figure",
+                    showlegend=False)
+ 
+    return result, df_result, fig, sw_p_val
 
 
-taguchi_ex_url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR2pTVvSJJEWf1woRdODBYzBvJsHvgIgcJWAly2EDoNGm610xiMISNdaf8yq1f8h732zqel7v-vNon7/pub?gid=0&single=true&output=csv"
-st.markdown("### **Taguchi Data Format Example File [Demo File](%s)**" % taguchi_ex_url)
+def main():
 
-uploaded_csv = st.file_uploader('#### 選擇您要上傳的CSV檔')
+    fig_size = [1280, 960]
 
-if uploaded_csv is not None:
-    df_raw = pd.read_csv(uploaded_csv, encoding="utf-8")
-    st.header('您所上傳的CSV檔內容：')
-    st.dataframe(df_raw)
-    # fac_n = df_fac.shape[1]
+    st.title('Linear Regression Tool')
+
+    st.markdown("               ")
+    st.markdown("               ")
+
+
+    uploaded_csv = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔')
+    # uploaded_csv = st.file_uploader('#### 選擇您要上傳的CSV檔')
 
     ana_type = st.selectbox("Choose Analysis Mehthd", ["Regression Method", "Taguchi Method"])
+
+    if ana_type == "Regression Method":
+        url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
+
+    else:
+        url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR2pTVvSJJEWf1woRdODBYzBvJsHvgIgcJWAly2EDoNGm610xiMISNdaf8yq1f8h732zqel7v-vNon7/pub?gid=0&single=true&output=csv"
+
+
+    if uploaded_csv is not None:
+        df_raw = pd.read_csv(uploaded_csv, encoding="utf-8")
+        st.header('您所上傳的CSV檔內容：')
+
+        # fac_n = df_fac.shape[1]
+    else:
+        st.header('未上傳檔案，以下為 Demo：')
+        df_raw = pd.read_csv(url, encoding="utf-8")
+
+    st.dataframe(df_raw)
+
 
     if ana_type == "Regression Method":
 
@@ -99,6 +169,7 @@ if uploaded_csv is not None:
         if not factor:
             st.error("Please select at least one factor.")
 
+
         # factor_2nd order
         factor_2od_list = list()
         for j in factor:
@@ -108,8 +179,6 @@ if uploaded_csv is not None:
             "### Choose Factor 2nd Order(x^2)", factor_2od_list)
         if not factor_2od:
             st.error("Please select at 2nd order factor.")
-
-        # factor_2od_rev = 
 
         # factor_interaction
         factor_inter_tmp = list(itertools.combinations(factor, 2))
@@ -126,131 +195,67 @@ if uploaded_csv is not None:
         # st.write(factor_inter_list)
         # factor
         # factor_final = factor + factor_inter  
+
+        if uploaded_csv is None:
+            st.header('未上傳檔案，以下為 Demo：')
+            response = "Y1"
+            factor = ["R", "r", "t"]
+
         factor_final = factor + factor_2od + factor_inter
 
-
-
-
-        if st.checkbox('Perform Analysis'):
-            x_formula = "+".join(factor_final)
-            formula = response + "~" + x_formula
-            formula
-            df_reg = df_raw.copy()
-            # x_formula
-            # formula
-            # filter_list = factor + list(response)
-            # filter_list
-            # df_x = df_raw[factor]
-            # df_x
-
-            result, df_result, model = ols_reg(formula, df_reg)
-            st.write(result.summary())
-
-            alpha = 0.05
-            f_num = len(result.tvalues)-1
-            # dof = round(f_num/3, 0)
-            dof = result.df_resid
-            t_val = stats.t.ppf(1-alpha/2, dof)
-
-            df_pareto = result.tvalues[1:].abs()
-            df_pareto = df_pareto.sort_values(ascending=True)
-            df_pareto = pd.DataFrame(df_pareto).reset_index(level=0)
-            df_pareto.columns = ["factor", "t-value"]
-
-
-
-
-            SW, sw_p_val = shapiro(df_result["resid"])
-            # df_qq = acquire_qq_data(df_result["resid"])
-
-            st.markdown("#### Normality Test P Value:%s " % round(sw_p_val,4))
-            if sw_p_val >= 0.05:
-                st.markdown("##### Residual is NOT normal distribution!!")
-            else:
-                st.markdown("##### Residual is normal distribution")    
-
-            color_sequence = ["#65BFA1", "#A4D6C1", "#D5EBE1", "#EBF5EC", "#00A0DF", "#81CDE4", "#BFD9E2"]
-            color_sequence = px.colors.qualitative.Pastel
-            template = "simple_white"
-
-            fig = make_subplots(
-                rows=2, cols=2,
-                subplot_titles=("yhat-residual-plot (random better)", "residual-histogram-plot (normal distribution better)", 
-                                "redidual-sequence-plot (random better)", "pareto-plot (red line as criteria)"))
-
-            fig.add_trace(go.Scatter(x=df_result["yhat"], y=df_result["resid"], mode="markers", 
-                                    marker=dict(color='rgba(19, 166, 255, 0.6)')),
-                        row=1, col=1)
-
-            fig.add_trace(go.Histogram(x=df_result["resid"],
-                                    marker=dict(color='rgba(19, 166, 255, 0.6)')),
-                        row=1, col=2)
-
-            fig.add_trace(go.Scatter(y=df_result["resid"], mode="lines+markers",
-                                    marker=dict(color='rgba(19, 166, 255, 0.6)')),
-                        row=2, col=1)
-
-            fig.add_trace(go.Bar(x=df_pareto["t-value"], y=df_pareto["factor"], orientation='h', width=0.8,
-                                marker=dict(color='rgba(19, 166, 255, 0.6)')
-                                ),
-                        row=2, col=2)
-            fig.add_vline(x=t_val, line_width=2, line_dash='dash', line_color='red',
-                        row=2, col=2)
-
-            # fig.add_trace(go.Scatter(x=df_qq["x_line"], y=df_qq["y_line"], mode="lines"),
-            #               row=2, col=2)
-
-            fig.update_xaxes(title_text="Y-hat", row=1, col=1)
-            fig.update_yaxes(title_text="Residual", row=1, col=1)
-
-            fig.update_xaxes(title_text="Residual", row=1, col=2)
-            fig.update_yaxes(title_text="Count", row=1, col=2)
-
-            fig.update_xaxes(title_text="Sequence", row=2, col=1)
-            fig.update_yaxes(title_text="Residual", row=2, col=1)
-
-            fig.update_xaxes(title_text="Factor Importance", row=2, col=2)
-            fig.update_yaxes(title_text="Factor", row=2, col=2)
-
-            fig.update_layout(height=fig_size[1], width=fig_size[0],
-                            title_text="Model Check Figure",
-                            showlegend=False)
-            
-
-            date = str(datetime.datetime.now()).split(" ")[0]
-
-            mybuff = io.StringIO()
-            fig_file_name = date + "_reg-judge.html"
-            # fig_html = fig_pair.write_html(fig_file_name)
-            fig.write_html(mybuff, include_plotlyjs='cdn')
-            html_bytes = mybuff.getvalue().encode()
-
-            st.plotly_chart(fig, use_container_width=True)
-
-            csv = convert_df(df_result)
+        # if st.checkbox('Perform Analysis'):
+        x_formula = "+".join(factor_final)
+        formula = response + "~" + x_formula
+        formula
+        result, df_result, fig, sw_p_val = backend(df_raw, formula, fig_size)
+        st.write(result.summary())
         
-            # table_filename = doe_type + "_table_" + date
-            result_file = date + "_lin-reg.csv"
-            model_file_name = date + "_model.pickle"
+        st.markdown("#### Normality Test P Value:%s " % round(sw_p_val,4))
+        if sw_p_val >= 0.05:
+            st.markdown("##### Residual is NOT normal distribution!!")
+        else:
+            st.markdown("##### Residual is normal distribution")    
 
-            st.download_button(label='Download statistics result as CSV',  
-                            data=csv, 
-                            file_name=result_file,
-                            mime='text/csv')
-                
-            st.download_button(label="Download figure",
-                                data=html_bytes,
-                                file_name=fig_file_name,
-                                mime='text/html'
-                                )
+        date = str(datetime.datetime.now()).split(" ")[0]
+
+        mybuff = io.StringIO()
+        fig_file_name = date + "_reg-judge.html"
+        # fig_html = fig_pair.write_html(fig_file_name)
+        fig.write_html(mybuff, include_plotlyjs='cdn')
+        html_bytes = mybuff.getvalue().encode()
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        csv = convert_df(df_result)
+    
+        # table_filename = doe_type + "_table_" + date
+        result_file = date + "_lin-reg.csv"
+        model_file_name = date + "_model.pickle"
+
+        st.download_button(label='Download statistics result as CSV',  
+                        data=csv, 
+                        file_name=result_file,
+                        mime='text/csv')
             
-            st.download_button(label="Download Model",
-                                data=pickle.dumps(result),
-                                file_name=model_file_name,
-                                # mime='application/octet-stream'
-                                )
+        st.download_button(label="Download figure",
+                            data=html_bytes,
+                            file_name=fig_file_name,
+                            mime='text/html'
+                            )
+        
+        st.download_button(label="Download Model",
+                            data=pickle.dumps(result),
+                            file_name=model_file_name,
+                            # mime='application/octet-stream'
+                            )
 
     if ana_type == "Taguchi Method":
         st.markdown("##### Under Construction!!")
 
 
+
+#%% Web App 頁面
+if __name__ == '__main__':
+    main()
+
+# %%
