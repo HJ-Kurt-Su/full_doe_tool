@@ -122,6 +122,58 @@ def backend(df_reg, formula, fig_size):
     return result, df_result, fig, sw_p_val
 
 
+def backend_tgch(df_raw, factors, responses, target_type):
+
+    df_tgch = df_raw.melt(id_vars=factors, value_vars=responses, var_name="Response", value_name="Y")
+    df_tgch
+    fil_list = factors.copy()
+    # factors
+    fil_list.append("Y") 
+    # fil_list
+    df_mean = df_tgch[fil_list].groupby(factors, as_index=False).mean()
+    df_mean.rename(columns = {"Y":'Mean'}, inplace = True)
+
+    # df_mean
+    df_tgch_use = df_tgch.drop(columns=['Response'])
+    if target_type=="nominal best":
+        df_std = df_tgch_use.groupby(factors, as_index=False).std()
+        df_std.rename(columns = {"Y":'Std'}, inplace = True)
+        df_taguchi_summary = pd.merge(df_mean, df_std, on=factors)
+        df_taguchi_summary["SN"] = -10 * np.log10(df_taguchi_summary["Std"].pow(2)/df_taguchi_summary["Mean"].pow(2))
+
+    elif target_type=="smaller best":
+        df_tgch_use["Sum_Square"] = df_tgch_use["Y"].pow(2)
+        df_sum_square = df_tgch_use.groupby(factors, as_index=False).sum()
+        df_taguchi_summary = pd.merge(df_mean, df_sum_square, on=factors)
+        # df_taguchi_summary
+        df_taguchi_summary["SN"] = -10 * np.log10(df_taguchi_summary["Sum_Square"]/len(responses))
+        
+
+    elif target_type=="larger best":
+        df_tgch_use["Sum_Square_Inv"] = 1/df_tgch_use["Y"].pow(2)
+        df_sum_square = df_tgch_use.groupby(factors, as_index=False).sum()
+        df_taguchi_summary = pd.merge(df_mean, df_sum_square, on=factors)
+        df_taguchi_summary["SN"] = -10 * np.log10(df_taguchi_summary["Sum_Square_Inv"]/len(responses))
+        # df_taguchi_summary
+    # df_taguchi_summary
+
+    df_factor_summary = pd.DataFrame()
+
+    for i in factors:
+        # i
+        filter_list = [i, "Mean", "SN"]
+        # filter_list
+        df_mean_tmp = df_taguchi_summary.groupby([i], as_index=False).mean()
+
+        df_mean_tmp = df_mean_tmp[filter_list]
+        # df_mean_tmp
+        df_factor_summary = pd.concat([df_factor_summary,df_mean_tmp], ignore_index=True)
+        # df_factor_summary
+    df_factor_summary = df_factor_summary[factors+["Mean", "SN"]]
+    # df_factor_summary
+
+    return df_factor_summary, df_taguchi_summary
+
 def main():
 
     fig_size = [1280, 960]
@@ -154,11 +206,11 @@ def main():
         df_raw = pd.read_csv(url, encoding="utf-8")
 
     st.dataframe(df_raw)
+    select_list = list(df_raw.columns)
 
 
     if ana_type == "Regression Method":
 
-        select_list = list(df_raw.columns)
         # select_list
         response = st.selectbox("### Choose Response(y)", select_list)
         # response
@@ -250,6 +302,67 @@ def main():
                             )
 
     if ana_type == "Taguchi Method":
+
+        responses = st.multiselect(
+            "### Choose Response(Yn)", select_list)
+        if not responses:
+            st.error("Please select at least one factor.")
+        
+
+        factor_list = select_list.copy()
+        
+        for i in responses:
+            # i
+            factor_list.remove(i)
+
+        factors = st.multiselect(
+            "### Choose Factors(Xn)", factor_list)
+        if not factors:
+            st.error("Please select at least one factor.")
+
+        target_type = st.selectbox("### Choose Traget", ["larger best", "nominal best", "smaller best"])
+
+        if uploaded_csv is None:
+            st.header('未上傳檔案，以下為 Demo：')
+            response = ["Y1", "Y2", "Y3"]
+            factor = ["R", "r", "t"]
+
+        df_fac_summary,  df_tgch_summary = backend_tgch(df_raw, factors, responses, target_type)
+        df_fac_summary
+        df_tgch_summary
+
+        # df_tgch = df_raw.melt(id_vars=factors, value_vars=responses, var_name="Response", value_name="Y")
+        # df_tgch
+        # fil_list = factors.copy()
+        # # factors
+        # fil_list.append("Y") 
+        # # fil_list
+        # df_mean = df_tgch[fil_list].groupby(factors, as_index=False).mean()
+        # df_mean.rename(columns = {"Y":'Mean'}, inplace = True)
+
+        # df_mean
+        
+        # if target_type=="nominal best":
+        #     df_std = df_taguchi.groupby(factor_col, as_index=False).std()
+        #     df_std.rename(columns = {trans_value_col_name:'Std'}, inplace = True)
+        #     df_taguchi_summary = pd.merge(df_mean, df_std, on=factor_col)
+        #     df_taguchi_summary["SN"] = -10 * np.log10(df_taguchi_summary["Std"].pow(2)/df_taguchi_summary["Mean"].pow(2))
+
+        # elif target_type=="smaller best":
+        #     df_taguchi["Sum_Square"] = df_taguchi[trans_value_col_name].pow(2)
+        #     df_sum_square = df_taguchi.groupby(factor_col, as_index=False).sum()
+        #     df_taguchi_summary = pd.merge(df_mean, df_sum_square, on=factor_col)
+        #     df_taguchi_summary["SN"] = -10 * np.log10(df_taguchi_summary["Sum_Square"]/len(response_col))
+        #     # print(df_taguchi_summary)
+            
+
+        # elif target_type=="larger best":
+        #     df_taguchi["Sum_Square_Inv"] = 1/df_taguchi[trans_value_col_name].pow(2)
+        #     df_sum_square = df_taguchi.groupby(factor_col, as_index=False).sum()
+        #     df_taguchi_summary = pd.merge(df_mean, df_sum_square, on=factor_col)
+        #     df_taguchi_summary["SN"] = -10 * np.log10(df_taguchi_summary["Sum_Square_Inv"]/len(response_col))
+        #     # print(df_taguchi_summary)
+
         st.markdown("##### Under Construction!!")
 
 
