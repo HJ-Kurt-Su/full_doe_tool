@@ -328,9 +328,76 @@ def main():
             factor = ["R", "r", "t"]
 
         df_fac_summary,  df_tgch_summary = backend_tgch(df_raw, factors, responses, target_type)
+        mean_average = df_tgch_summary["Mean"].mean()
+        sn_average = df_tgch_summary["SN"].mean()
+
         df_fac_summary
         df_tgch_summary
 
+
+        df_sn_max=pd.DataFrame()
+
+        for i in factor_list:
+
+            df_factor = df_fac_summary[df_fac_summary[i].notna()]
+            df_sn_tmp = df_factor.loc[df_factor.loc[:,"SN"].idxmax(),:]
+            # print(pd.DataFrame(sn_tmp).T)
+            df_sn_max = pd.concat([df_sn_max,pd.DataFrame(df_sn_tmp).T], ignore_index=True)
+
+        max_sn = df_sn_max["SN"].sum() - (len(factor_list)-1) * sn_average
+        max_sn_mean = df_sn_max["Mean"].sum() - (len(factor_list)-1) * mean_average
+        # print("Max SN is: ", round(max_sn,2))
+        # print("Relative Mean is: ", round(max_sn_mean,2))
+
+        st.write("Max SN is: ", str(round(max_sn, 2)))
+        st.write("Relative Mean is: ", str(round(max_sn_mean,2)))
+        # max_sn_mean
+        st.dataframe(df_sn_max)
+
+        upper_col, lower_col = st.columns(2)
+        with upper_col:
+
+            upper_mean = st.number_input('Uppder Mean Value', value=0.33) 
+            
+        with lower_col:
+            lower_mean = st.number_input('Lower Mean Value', value=0.3) 
+
+
+        factor_index_list = list()
+        for k in factor_list:
+            df_factor = df_fac_summary[df_fac_summary[k].notna()]
+            # print(df_factor.index)
+            factor_index_list.append(list(df_factor.index))
+        # print(ddd)
+        combination_list = list(itertools.product(*factor_index_list))
+
+        df_result_all = pd.DataFrame()
+        for j in combination_list:
+            comb_tmp = df_fac_summary.loc[list(j)]
+            factor_lv_tmp = comb_tmp[factor_list]
+            factor_lv_tmp2 = np.array(factor_lv_tmp)
+            # print(aac.diagonal())
+            factor_lv=list(factor_lv_tmp2.diagonal())
+            each_sn = comb_tmp["SN"].sum() - (len(factor_list)-1) * sn_average
+            each_mean = comb_tmp["Mean"].sum() - (len(factor_list)-1) * mean_average
+            # print(each_sn)
+            # print(each_mean)
+            factor_lv.append(each_mean)
+            factor_lv.append(each_sn)
+            
+            df_result_tmp = pd.DataFrame(factor_lv)
+            # print(aae)
+            df_result_all = pd.concat([df_result_all,df_result_tmp.T], ignore_index=True)
+
+        df_result_all.columns=factor_list+["Mean", "SN"]
+
+        df_result_filter = df_result_all[(df_result_all["Mean"]>lower_mean) & (df_result_all["Mean"]<upper_mean)]
+        # print(df_result_all)
+        df_result_filter = df_result_filter.sort_values(by=["SN"], ascending=False)
+ 
+
+
+        df_result_filter
         # df_tgch = df_raw.melt(id_vars=factors, value_vars=responses, var_name="Response", value_name="Y")
         # df_tgch
         # fil_list = factors.copy()
