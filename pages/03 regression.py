@@ -174,6 +174,46 @@ def backend_tgch(df_raw, factors, responses, target_type):
 
     return df_factor_summary, df_taguchi_summary
 
+
+def backend_tgch_ana(df_fac_summary, factor_list, sn_average, mean_average):
+    df_sn_max=pd.DataFrame()
+    factor_index_list = list()
+
+    for i in factor_list:
+        # factor_list
+
+        df_factor = df_fac_summary[df_fac_summary[i].notna()]
+        df_sn_tmp = df_factor.loc[df_factor.loc[:,"SN"].idxmax(),:]
+        factor_index_list.append(list(df_factor.index))
+        # print(pd.DataFrame(sn_tmp).T)
+        df_sn_max = pd.concat([df_sn_max,pd.DataFrame(df_sn_tmp).T], ignore_index=True)
+
+    max_sn = df_sn_max["SN"].sum() - (len(factor_list)-1) * sn_average
+    max_sn_mean = df_sn_max["Mean"].sum() - (len(factor_list)-1) * mean_average
+    combination_list = list(itertools.product(*factor_index_list))
+    
+
+    df_result_all = pd.DataFrame()
+    for j in combination_list:
+        comb_tmp = df_fac_summary.loc[list(j)]
+        factor_lv_tmp = comb_tmp[factor_list]
+        factor_lv_tmp2 = np.array(factor_lv_tmp)
+        # print(aac.diagonal())
+        factor_lv=list(factor_lv_tmp2.diagonal())
+        each_sn = comb_tmp["SN"].sum() - (len(factor_list)-1) * sn_average
+        each_mean = comb_tmp["Mean"].sum() - (len(factor_list)-1) * mean_average
+
+        factor_lv.append(each_mean)
+        factor_lv.append(each_sn)
+        
+        df_result_tmp = pd.DataFrame(factor_lv)
+        df_result_all = pd.concat([df_result_all,df_result_tmp.T], ignore_index=True)
+
+    df_result_all.columns=factor_list+["Mean", "SN"]
+
+    return df_sn_max, max_sn, max_sn_mean, df_result_all
+
+
 def main():
 
     fig_size = [1280, 960]
@@ -324,8 +364,9 @@ def main():
 
         if uploaded_csv is None:
             st.header('未上傳檔案，以下為 Demo：')
-            response = ["Y1", "Y2", "Y3"]
-            factor = ["R", "r", "t"]
+            responses = ["Z1", "Z2", "Z3"]
+            factors = ["R", "r", "t"]
+            factor_list = ["R", "r", "t"]
 
         df_fac_summary,  df_tgch_summary = backend_tgch(df_raw, factors, responses, target_type)
         mean_average = df_tgch_summary["Mean"].mean()
@@ -334,25 +375,13 @@ def main():
         df_fac_summary
         df_tgch_summary
 
-
-        df_sn_max=pd.DataFrame()
-
-        for i in factor_list:
-
-            df_factor = df_fac_summary[df_fac_summary[i].notna()]
-            df_sn_tmp = df_factor.loc[df_factor.loc[:,"SN"].idxmax(),:]
-            # print(pd.DataFrame(sn_tmp).T)
-            df_sn_max = pd.concat([df_sn_max,pd.DataFrame(df_sn_tmp).T], ignore_index=True)
-
-        max_sn = df_sn_max["SN"].sum() - (len(factor_list)-1) * sn_average
-        max_sn_mean = df_sn_max["Mean"].sum() - (len(factor_list)-1) * mean_average
-        # print("Max SN is: ", round(max_sn,2))
-        # print("Relative Mean is: ", round(max_sn_mean,2))
+        df_sn_max, max_sn, max_sn_mean, df_result_all = backend_tgch_ana(df_fac_summary, factor_list, sn_average, mean_average)
 
         st.write("Max SN is: ", str(round(max_sn, 2)))
         st.write("Relative Mean is: ", str(round(max_sn_mean,2)))
         # max_sn_mean
         st.dataframe(df_sn_max)
+
 
         upper_col, lower_col = st.columns(2)
         with upper_col:
@@ -363,74 +392,12 @@ def main():
             lower_mean = st.number_input('Lower Mean Value', value=0.3) 
 
 
-        factor_index_list = list()
-        for k in factor_list:
-            df_factor = df_fac_summary[df_fac_summary[k].notna()]
-            # print(df_factor.index)
-            factor_index_list.append(list(df_factor.index))
-        # print(ddd)
-        combination_list = list(itertools.product(*factor_index_list))
-
-        df_result_all = pd.DataFrame()
-        for j in combination_list:
-            comb_tmp = df_fac_summary.loc[list(j)]
-            factor_lv_tmp = comb_tmp[factor_list]
-            factor_lv_tmp2 = np.array(factor_lv_tmp)
-            # print(aac.diagonal())
-            factor_lv=list(factor_lv_tmp2.diagonal())
-            each_sn = comb_tmp["SN"].sum() - (len(factor_list)-1) * sn_average
-            each_mean = comb_tmp["Mean"].sum() - (len(factor_list)-1) * mean_average
-            # print(each_sn)
-            # print(each_mean)
-            factor_lv.append(each_mean)
-            factor_lv.append(each_sn)
-            
-            df_result_tmp = pd.DataFrame(factor_lv)
-            # print(aae)
-            df_result_all = pd.concat([df_result_all,df_result_tmp.T], ignore_index=True)
-
-        df_result_all.columns=factor_list+["Mean", "SN"]
-
         df_result_filter = df_result_all[(df_result_all["Mean"]>lower_mean) & (df_result_all["Mean"]<upper_mean)]
         # print(df_result_all)
         df_result_filter = df_result_filter.sort_values(by=["SN"], ascending=False)
  
-
-
-        df_result_filter
-        # df_tgch = df_raw.melt(id_vars=factors, value_vars=responses, var_name="Response", value_name="Y")
-        # df_tgch
-        # fil_list = factors.copy()
-        # # factors
-        # fil_list.append("Y") 
-        # # fil_list
-        # df_mean = df_tgch[fil_list].groupby(factors, as_index=False).mean()
-        # df_mean.rename(columns = {"Y":'Mean'}, inplace = True)
-
-        # df_mean
-        
-        # if target_type=="nominal best":
-        #     df_std = df_taguchi.groupby(factor_col, as_index=False).std()
-        #     df_std.rename(columns = {trans_value_col_name:'Std'}, inplace = True)
-        #     df_taguchi_summary = pd.merge(df_mean, df_std, on=factor_col)
-        #     df_taguchi_summary["SN"] = -10 * np.log10(df_taguchi_summary["Std"].pow(2)/df_taguchi_summary["Mean"].pow(2))
-
-        # elif target_type=="smaller best":
-        #     df_taguchi["Sum_Square"] = df_taguchi[trans_value_col_name].pow(2)
-        #     df_sum_square = df_taguchi.groupby(factor_col, as_index=False).sum()
-        #     df_taguchi_summary = pd.merge(df_mean, df_sum_square, on=factor_col)
-        #     df_taguchi_summary["SN"] = -10 * np.log10(df_taguchi_summary["Sum_Square"]/len(response_col))
-        #     # print(df_taguchi_summary)
-            
-
-        # elif target_type=="larger best":
-        #     df_taguchi["Sum_Square_Inv"] = 1/df_taguchi[trans_value_col_name].pow(2)
-        #     df_sum_square = df_taguchi.groupby(factor_col, as_index=False).sum()
-        #     df_taguchi_summary = pd.merge(df_mean, df_sum_square, on=factor_col)
-        #     df_taguchi_summary["SN"] = -10 * np.log10(df_taguchi_summary["Sum_Square_Inv"]/len(response_col))
-        #     # print(df_taguchi_summary)
-
-        st.markdown("##### Under Construction!!")
+        st.dataframe(df_result_filter)
+  
 
 
 
