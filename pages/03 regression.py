@@ -28,6 +28,17 @@ def convert_df(df):
 #     # IMPORTANT: Cache the conversion to prevent computation on every rerun
 #     return df.to_csv().encode('utf-8')
 
+def convert_fig(fig, fig_name):
+
+    mybuff = io.StringIO()
+   
+    # fig_html = fig_pair.write_html(fig_file_name)
+    fig.write_html(mybuff, include_plotlyjs='cdn')
+    html_bytes = mybuff.getvalue().encode()
+
+    return html_bytes
+
+
 def ols_reg(formula, df):
 
   model = smf.ols(formula, df)
@@ -51,7 +62,10 @@ def ols_reg(formula, df):
 #   df_qq["y_line"] = qqplot_data[1].get_ydata()
 
 #   return df_qq
-
+# color_sequence = ["#65BFA1", "#A4D6C1", "#D5EBE1", "#EBF5EC", "#00A0DF", "#81CDE4", "#BFD9E2"]
+# color_sequence = px.colors.qualitative.Pastel
+# template = "simple_white"
+  
 def backend(df_reg, formula, fig_size):
     # df_reg = df_raw.copy()
 
@@ -72,9 +86,7 @@ def backend(df_reg, formula, fig_size):
     SW, sw_p_val = shapiro(df_result["resid"])
     # df_qq = acquire_qq_data(df_result["resid"])
 
-    color_sequence = ["#65BFA1", "#A4D6C1", "#D5EBE1", "#EBF5EC", "#00A0DF", "#81CDE4", "#BFD9E2"]
-    color_sequence = px.colors.qualitative.Pastel
-    template = "simple_white"
+
 
     fig = make_subplots(
         rows=2, cols=2,
@@ -122,7 +134,7 @@ def backend(df_reg, formula, fig_size):
     return result, df_result, fig, sw_p_val
 
 
-def backend_tgch(df_raw, factors, responses, target_type):
+def backend_tgch(df_raw, factors, responses, target_type, fig_size):
 
     df_tgch = df_raw.melt(id_vars=factors, value_vars=responses, var_name="Response", value_name="Y")
     df_tgch
@@ -172,7 +184,34 @@ def backend_tgch(df_raw, factors, responses, target_type):
     df_factor_summary = df_factor_summary[factors+["Mean", "SN"]]
     # df_factor_summary
 
-    return df_factor_summary, df_taguchi_summary
+
+    # color_sequence = ["#65BFA1", "#A4D6C1", "#D5EBE1", "#EBF5EC", "#00A0DF", "#81CDE4", "#BFD9E2"]
+    # color_sequence = px.colors.qualitative.Pastel
+    # template = "simple_white"
+
+
+    fig_mean = make_subplots(rows=1, cols=len(factors), subplot_titles=factors)
+    fig_sn = make_subplots(rows=1, cols=len(factors), subplot_titles=factors)
+
+    col_location = 1
+    for i in factors:
+
+        fig_mean.add_trace(
+            go.Scatter(x=df_factor_summary[i], y=df_factor_summary["Mean"]),
+            row=1, col=col_location
+        )
+
+        fig_sn.add_trace(
+            go.Scatter(x=df_factor_summary[i], y=df_factor_summary["SN"]),
+            row=1, col=col_location
+        ) 
+        col_location+=1
+        # print(col_location)
+
+    fig_mean.update_layout(height=fig_size[1], width=fig_size[0], title_text="Mean")
+    fig_sn.update_layout(height=fig_size[1], width=fig_size[0], title_text="SN")
+
+    return df_factor_summary, df_taguchi_summary, fig_mean, fig_sn
 
 
 def backend_tgch_ana(df_fac_summary, factor_list, sn_average, mean_average):
@@ -368,12 +407,47 @@ def main():
             factors = ["R", "r", "t"]
             factor_list = ["R", "r", "t"]
 
-        df_fac_summary,  df_tgch_summary = backend_tgch(df_raw, factors, responses, target_type)
+        df_fac_summary,  df_tgch_summary, fig_mean, fig_sn = backend_tgch(df_raw, factors, responses, target_type, fig_size)
         mean_average = df_tgch_summary["Mean"].mean()
         sn_average = df_tgch_summary["SN"].mean()
 
-        df_fac_summary
-        df_tgch_summary
+        st.subheader("Taguchi Factor Lv vs. Mean & SN")
+        st.dataframe(df_fac_summary)
+        st.subheader("Taguchi Result Summary")
+        st.dataframe(df_tgch_summary)
+        st.subheader("Taguchi Factors vs. Mean")
+        st.plotly_chart(fig_mean, use_container_width=True)
+        st.subheader("Taguchi Factors vs. SN")
+        st.plotly_chart(fig_sn, use_container_width=True)
+
+        date = str(datetime.datetime.now()).split(" ")[0]
+        fig_file_name = date + "_taguchi-mean.html"
+        fig_file_name_sn = date + "_taguchi-sn.html"
+        file_name_csv = date + "_taguchi-factor.csv"
+
+        fig_mean_data = convert_fig(fig_mean, fig_file_name)
+        fig_sn_data = convert_fig(fig_sn, fig_file_name_sn)
+
+        csv = convert_df(df_fac_summary)
+
+        st.download_button(label="Download mean figure",
+                    data=fig_mean_data,
+                    file_name=fig_file_name,
+                    mime='text/html'
+                    )
+        
+        st.download_button(label="Download SN figure",
+            data=fig_sn_data,
+            file_name=fig_file_name_sn,
+            mime='text/html'
+            )
+        
+        st.download_button(label='Download Rsult as CSV',  
+                data=csv, 
+                file_name=file_name_csv,
+                mime='text/csv')
+
+
 
         df_sn_max, max_sn, max_sn_mean, df_result_all = backend_tgch_ana(df_fac_summary, factor_list, sn_average, mean_average)
 
@@ -397,6 +471,13 @@ def main():
         df_result_filter = df_result_filter.sort_values(by=["SN"], ascending=False)
  
         st.dataframe(df_result_filter)
+
+        csv_fil = convert_df(df_result_filter)
+        fil_file_name_csv = date + "_taguchi-factor.csv"
+        st.download_button(label='Download filter result as CSV',  
+        data=csv_fil, 
+        file_name=fil_file_name_csv,
+        mime='text/csv')
   
 
 
