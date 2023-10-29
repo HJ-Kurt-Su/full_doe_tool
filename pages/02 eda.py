@@ -6,8 +6,9 @@ import datetime
 import numpy as np
 import io
 import plotly.express as px
-from plotly.subplots import make_subplots
+# from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import plotly.figure_factory as ff
 
 @st.cache_data
 def convert_df(df):
@@ -31,7 +32,7 @@ def backend(fig_type, df_plot, para):
     color_sequence = px.colors.qualitative.Pastel
     template = "simple_white"
 
-    if fig_type not in ["pair plot", "histogram"]:
+    if fig_type not in ["pair plot", "histogram", "distribution"]:
         fig_type
         y_var = para["y"]
     
@@ -57,11 +58,36 @@ def backend(fig_type, df_plot, para):
         
     elif fig_type == "histogram":
         bins = para["bins"]
+        barmode = para["barmode"]
         fig = px.histogram(df_plot, x=x_var, nbins=bins, color=category,
                     color_discrete_sequence=color_sequence, template=template,
+                    marginal="rug", hover_data=df_plot.columns,
                     # range_x=x_range, range_y=y_range,        
                     width=fig_width, height=fig_height
-                    )
+                    )       
+        fig.update_layout(barmode=barmode)            
+        if barmode == "overlay":
+            # Reduce opacity to see both histograms 
+            fig.update_traces(opacity=0.75)
+    
+    elif fig_type == "distribution":
+        bin_size = para["bin_size"]
+        if cate_req == False:
+            his_data=[df_plot[x_var].to_numpy()]
+            group_labels = [x_var]
+        else:
+            unique_cate = df_plot[category].unique()
+            group_labels = []
+            his_data = []
+            for i in unique_cate:
+                group_labels.append(str(i))
+                df_his_temp = df_plot[df_plot[category] == i]
+                his_temp = df_his_temp[x_var].to_numpy()
+                his_data.append(his_temp)    
+        # group_labels
+        # his_data
+        fig = ff.create_distplot(his_data, group_labels, bin_size=bin_size)
+
     
     elif fig_type == "pair plot":
         focus_factor = para["focus"]
@@ -131,7 +157,7 @@ def backend(fig_type, df_plot, para):
 
 
 
-    if fig_type not in  ["pair plot", "interaction(DOE)", "histogram"]:
+    if fig_type not in  ["pair plot", "interaction(DOE)", "histogram", "distribution"]:
 
         fig.update_layout(
             xaxis_title=x_var,
@@ -173,7 +199,7 @@ def main():
 
     fig_type = st.selectbox(
         "### Choose figure type", 
-        ["box", "violin", "histogram", "pair plot", "interaction(DOE)", "scatter", "bubble", "bubble animate", ],
+        ["box", "violin", "histogram", "distribution", "pair plot", "interaction(DOE)", "scatter", "bubble", "bubble animate", ],
     )
 
     select_list = list(df_raw.columns)
@@ -199,6 +225,16 @@ def main():
             para["x"] = x_var
             bins = st.number_input('Choose bins', min_value=5, value=10, max_value=100, step=5) 
             para["bins"] = bins
+            barmode = st.selectbox("## Choose Overlay/Stack Bar", ["overlay", "stack"])
+            para["barmode"] = barmode
+
+        elif fig_type == "distribution":
+            x_var = st.selectbox("## Choose x variable", select_list)
+            para["x"] = x_var
+            bin_size = st.number_input('Choose bin size', min_value=0.00, value=1.00, step=0.01) 
+            para["bin_size"] = bin_size
+            # barmode = st.selectbox("## Choose Overlay/Stack Bar", ["overlay", "stack"])
+            # para["barmode"] = barmode
 
         else:
             y_var = st.selectbox("## Choose y variable", select_list)

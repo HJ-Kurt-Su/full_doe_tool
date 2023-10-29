@@ -337,7 +337,7 @@ def main():
         # if st.checkbox('Perform Analysis'):
         x_formula = "+".join(factor_final)
         formula = response + "~" + x_formula
-        formula
+        st.subheader(formula)
         result, df_result, fig, sw_p_val = backend(df_raw, formula, fig_size)
         st.write(result.summary())
         

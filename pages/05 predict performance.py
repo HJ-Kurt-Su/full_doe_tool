@@ -98,7 +98,7 @@ def main():
     st.markdown("               ")
     st.markdown("#### RMSE: %s" % round(model_rmse_score, 3))
     st.markdown("               ")
-    st.markdown("#### MAPE: %s " % round(model_mape_score*100, 1))
+    st.markdown("#### MAPE: %s %%" % round(model_mape_score*100, 1))
 
     # st.header('預測結果：')
     # st.dataframe(df_predict)
