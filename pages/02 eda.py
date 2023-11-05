@@ -211,7 +211,24 @@ def main():
         category = st.selectbox(
             "### Choose category", select_list)
         para["cate"] = category
+    
 
+ 
+  
+    filter_req = st.checkbox('Filter Data')
+
+    if filter_req == True:
+        st.markdown("----------------")  
+        st.markdown("#### Filter Parameter")
+        filter_para = st.selectbox(
+            "### Choose filter column", select_list)
+        filter_sel = df_raw[filter_para].unique()
+        filter_item = st.multiselect(
+            "### Choose item", filter_sel,
+        )
+        st.markdown("----------------")  
+        # filter_item        
+    
     if fig_type == "pair plot":
         
         focus_factor = st.multiselect(
@@ -282,7 +299,14 @@ def main():
 
     st.markdown("----------------")  
 
-    df_plot = df_raw.copy()
+    if filter_req == True:
+        df_plot = df_raw[df_raw[filter_para].isin(filter_item)].copy()
+        st.markdown("----------------") 
+        st.markdown("#### Filter DataFrame")
+        df_plot
+        st.markdown("----------------")  
+    else:
+        df_plot = df_raw.copy()
 
     fig = backend(fig_type, df_plot, para)
     st.plotly_chart(fig, use_container_width=True)

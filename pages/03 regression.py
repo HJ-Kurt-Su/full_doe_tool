@@ -287,6 +287,26 @@ def main():
     st.dataframe(df_raw)
     select_list = list(df_raw.columns)
 
+    filter_req = st.checkbox('Filter Data')
+    if filter_req == True:
+        st.markdown("----------------")  
+        st.markdown("#### Filter Parameter")
+        filter_para = st.selectbox(
+            "### Choose filter column", select_list)
+        filter_sel = df_raw[filter_para].unique()
+        filter_item = st.multiselect(
+            "### Choose item", filter_sel,
+        )
+        st.markdown("----------------")  
+    if filter_req == True:
+        df_reg = df_raw[df_raw[filter_para].isin(filter_item)].copy()
+        st.markdown("----------------") 
+        st.markdown("#### Filter DataFrame")
+        df_reg
+        st.markdown("----------------") 
+    else:
+        df_reg = df_raw.copy()
+
 
     if ana_type == "Regression Method":
 
@@ -338,7 +358,7 @@ def main():
         x_formula = "+".join(factor_final)
         formula = response + "~" + x_formula
         st.subheader(formula)
-        result, df_result, fig, sw_p_val = backend(df_raw, formula, fig_size)
+        result, df_result, fig, sw_p_val = backend(df_reg, formula, fig_size)
         st.write(result.summary())
         
         st.markdown("#### Normality Test P Value:%s " % round(sw_p_val,4))
@@ -407,7 +427,7 @@ def main():
             factors = ["R", "r", "t"]
             factor_list = ["R", "r", "t"]
 
-        df_fac_summary,  df_tgch_summary, fig_mean, fig_sn = backend_tgch(df_raw, factors, responses, target_type, fig_size)
+        df_fac_summary,  df_tgch_summary, fig_mean, fig_sn = backend_tgch(df_reg, factors, responses, target_type, fig_size)
         mean_average = df_tgch_summary["Mean"].mean()
         sn_average = df_tgch_summary["SN"].mean()
 

@@ -53,6 +53,28 @@ def main():
         df_raw = pd.read_csv(url, encoding="utf-8")
     
     st.dataframe(df_raw)
+
+    select_list = list(df_raw.columns)
+
+    filter_req = st.checkbox('Filter Data')
+    if filter_req == True:
+        st.markdown("----------------")  
+        st.markdown("#### Filter Parameter")
+        filter_para = st.selectbox(
+            "### Choose filter column", select_list)
+        filter_sel = df_raw[filter_para].unique()
+        filter_item = st.multiselect(
+            "### Choose item", filter_sel,
+        ) 
+
+    if filter_req == True:
+        df_prd = df_raw[df_raw[filter_para].isin(filter_item)].copy()
+        st.markdown("----------------")  
+        st.markdown("#### Filter DataFrame")
+        df_prd
+        st.markdown("----------------") 
+    else:
+        df_prd = df_raw.copy()
     
     if uploaded_model is not None:
         st.header('您所上傳的 Model 檔內容：')
@@ -62,8 +84,8 @@ def main():
         st.header('未上傳 Model，以下為 Demo：')
         uploaded_model = BytesIO(requests.get(url_model).content)
         # r
-    
-    df_predict = backend(uploaded_model, df_raw)
+
+    df_predict = backend(uploaded_model, df_prd)
 
     st.header('預測結果：')
     st.dataframe(df_predict)
