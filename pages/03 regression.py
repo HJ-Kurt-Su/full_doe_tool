@@ -6,6 +6,7 @@ import datetime
 import numpy as np
 import io
 import statsmodels.formula.api as smf
+import statsmodels.api as sm 
 from scipy.stats import shapiro
 from scipy import stats
 # from statsmodels.graphics.gofplots import qqplot
@@ -266,14 +267,16 @@ def main():
     uploaded_csv = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔')
     # uploaded_csv = st.file_uploader('#### 選擇您要上傳的CSV檔')
 
-    ana_type = st.selectbox("Choose Analysis Mehthd", ["Regression Method", "Taguchi Method"])
+    ana_type = st.selectbox("Choose Analysis Mehthd", ["Regression Method", "Taguchi Method", "2 LV Classification"])
 
     if ana_type == "Regression Method":
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
 
-    else:
+    elif ana_type =="Taguchi Method":
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR2pTVvSJJEWf1woRdODBYzBvJsHvgIgcJWAly2EDoNGm610xiMISNdaf8yq1f8h732zqel7v-vNon7/pub?gid=0&single=true&output=csv"
 
+    else:
+        url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSAL6t_HNdjVhKPyDzt-fVMHqT7ZZnWPrKLIY-QveQxF9vMbR-HbRwcDBM1MEyUjnHkC0JWKbL2TjP0/pub?gid=0&single=true&output=csv"
 
     if uploaded_csv is not None:
         df_raw = pd.read_csv(uploaded_csv, encoding="utf-8")
@@ -498,8 +501,37 @@ def main():
         data=csv_fil, 
         file_name=fil_file_name_csv,
         mime='text/csv')
-  
 
+
+    if ana_type == "2 LV Classification":
+
+        # select_list
+        response = st.selectbox("### Choose Response(y)", select_list)
+        # response
+        factor_list = select_list.copy()
+        factor_list.remove(response)
+        factor = st.multiselect(
+            "### Choose Factor(x)", factor_list)
+        if not factor:
+            st.error("Please select at least one factor.")
+
+        if uploaded_csv is None:
+            st.header('未上傳檔案，以下為 Demo：')
+            response = "Y2"
+            factor = ["R", "r", "t"]
+
+        st.header("Under Construction")
+        # df_x = df_raw[factor]
+        # df_y = df_raw[response]
+            
+        x_formula = "+".join(factor)
+        formula = response + "~" + x_formula
+        st.subheader(formula)
+
+        # log_model = smf.logit(formula, data=df_raw).fit() 
+
+        # log_reg_sum = log_model.summary()
+        # log_reg_sum
 
 
 #%% Web App 頁面
