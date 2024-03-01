@@ -12,6 +12,12 @@ from scipy import stats
 # from statsmodels.graphics.gofplots import qqplot
 
 
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_curve, auc
+
 import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
@@ -521,17 +527,49 @@ def main():
             factor = ["R", "r", "t"]
 
         st.header("Under Construction")
-        # df_x = df_raw[factor]
-        # df_y = df_raw[response]
+        df_x = df_raw[factor]
+        df_y = df_raw[response]
+
+        log_model = sm.Logit(df_y, sm.add_constant(df_x)).fit()
+        log_model = sm.Logit(df_y, df_x).fit()
             
-        x_formula = "+".join(factor)
-        formula = response + "~" + x_formula
-        st.subheader(formula)
+        # x_formula = "+".join(factor)
+        # formula = response + "~" + x_formula
+        # st.subheader(formula)
 
         # log_model = smf.logit(formula, data=df_raw).fit() 
 
-        # log_reg_sum = log_model.summary()
-        # log_reg_sum
+        log_reg_sum = log_model.summary()
+        log_reg_sum
+
+        y_pred = log_model.predict(df_x)
+        # y_pred
+
+        fpr, tpr, threshold = roc_curve(df_y,y_pred)
+        roc_auc = auc(fpr,tpr)
+        st.markdown("### AUC is: %s" % round(roc_auc,4))
+
+        dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
+        df_sum = pd.DataFrame.from_dict(dict_sum)
+        df_sum
+        
+
+        fig_roc = px.line(x=fpr, y=tpr, markers=False)
+        fig_roc
+        # threshold
+        # fpr
+        # tpr
+        # accuracy = accuracy_score(pd.to_numeric(df_y), pd.to_numeric(y_pred))
+        # accuracy
+        # cm = confusion_matrix(df_y, y_pred)
+
+        # clf_rp = classification_report(df_y, y_pred)
+
+        
+        # cm
+        # clf_rp
+
+
 
 
 #%% Web App 頁面

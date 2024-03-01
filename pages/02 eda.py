@@ -139,7 +139,7 @@ def backend(fig_type, df_plot, para):
         df_interact_plot = df_plot[select_list]
         df_interact_group = df_interact_plot.groupby(list(inter_factor), as_index=False).mean()
         # color=factor_2, 
-        fig_scatter = px.scatter(df_interact_plot, x=factor_1, y=y_var, 
+        fig_scatter = px.scatter(df_interact_plot, x=factor_1, y=y_var, color=factor_2,
                                 width=fig_width, height=fig_height,
                                 )
         fig_line = px.line(df_interact_group, x=factor_1, y=y_var, color=factor_2, width=fig_width, height=fig_height, markers=True)
