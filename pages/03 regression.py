@@ -278,10 +278,10 @@ def main():
     if ana_type == "Regression Method":
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
 
-    elif ana_type =="Taguchi Method":
+    elif ana_type == "Taguchi Method":
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR2pTVvSJJEWf1woRdODBYzBvJsHvgIgcJWAly2EDoNGm610xiMISNdaf8yq1f8h732zqel7v-vNon7/pub?gid=0&single=true&output=csv"
 
-    else:
+    elif ana_type == "2 LV Classification":
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSAL6t_HNdjVhKPyDzt-fVMHqT7ZZnWPrKLIY-QveQxF9vMbR-HbRwcDBM1MEyUjnHkC0JWKbL2TjP0/pub?gid=0&single=true&output=csv"
 
     if uploaded_csv is not None:
@@ -530,7 +530,7 @@ def main():
         df_x = df_raw[factor]
         df_y = df_raw[response]
 
-        log_model = sm.Logit(df_y, sm.add_constant(df_x)).fit()
+        # log_model = sm.Logit(df_y, sm.add_constant(df_x)).fit()
         log_model = sm.Logit(df_y, df_x).fit()
             
         # x_formula = "+".join(factor)
@@ -540,6 +540,8 @@ def main():
         # log_model = smf.logit(formula, data=df_raw).fit() 
 
         log_reg_sum = log_model.summary()
+
+        st.subheader("Model Summary")
         log_reg_sum
 
         y_pred = log_model.predict(df_x)
@@ -550,24 +552,48 @@ def main():
         st.markdown("### AUC is: %s" % round(roc_auc,4))
 
         dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
-        df_sum = pd.DataFrame.from_dict(dict_sum)
-        df_sum
+        df_roc_data = pd.DataFrame.from_dict(dict_sum)
+        st.subheader("ROC Data")
+        df_roc_data
         
+        fig_size=640
 
-        fig_roc = px.line(x=fpr, y=tpr, markers=False)
-        fig_roc
-        # threshold
-        # fpr
-        # tpr
-        # accuracy = accuracy_score(pd.to_numeric(df_y), pd.to_numeric(y_pred))
-        # accuracy
-        # cm = confusion_matrix(df_y, y_pred)
-
-        # clf_rp = classification_report(df_y, y_pred)
-
+        fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels=roc_auc, 
+                          range_x=[0,1], range_y=[0,1.1], width=fig_size, height=fig_size)
         
-        # cm
-        # clf_rp
+        st.subheader("ROC Figure")
+        st.plotly_chart(fig_roc, use_container_width=True)
+
+        date = str(datetime.datetime.now()).split(" ")[0]
+
+        fig_file_name_roc = date + "_roc.html"
+        file_name_csv = date + "_roc.csv"
+
+        fig_roc_data = convert_fig(fig_roc, fig_file_name_roc)
+
+        csv = convert_df(df_roc_data)
+
+        st.download_button(label="Download ROC figure",
+            data=fig_roc_data,
+            file_name=fig_file_name_roc,
+            mime='text/html'
+            )
+        
+        st.download_button(label='Download Rsult as CSV',  
+                data=csv, 
+                file_name=file_name_csv,
+                mime='text/csv')
+
+
+        model_file_name = date + "_model.pickle"
+        
+        st.download_button(label="Download Model",
+                            data=pickle.dumps(log_model),
+                            file_name=model_file_name,
+                            # mime='application/octet-stream'
+                            )
+
+
 
 
 
