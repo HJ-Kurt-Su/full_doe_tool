@@ -547,8 +547,11 @@ def main():
         y_pred = log_model.predict(df_x)
         # y_pred
 
-        fpr, tpr, threshold = roc_curve(df_y,y_pred)
+        fpr, tpr, threshold = roc_curve(df_y, y_pred)
         roc_auc = auc(fpr,tpr)
+        # df_y
+        # y_pred
+
         st.markdown("### AUC is: %s" % round(roc_auc,4))
 
         dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
@@ -563,6 +566,20 @@ def main():
         
         st.subheader("ROC Figure")
         st.plotly_chart(fig_roc, use_container_width=True)
+
+        st.subheader("Accuracy Judge")
+        threshold_cut = st.selectbox("Choose Threshold", threshold)
+        # threshold_cut = 0.5686
+
+        y_pred_code = y_pred.map(lambda x: 1 if x > threshold_cut else 0)
+        # y_pred_code
+        acc = accuracy_score(df_y, y_pred_code)
+        cof_mx = confusion_matrix(df_y, y_pred_code)
+        
+        # acc
+        st.markdown("### Accuracy is: %s" % round(acc,4))
+        st.markdown("### Confusion Matrix:")
+        st.dataframe(cof_mx)
 
         date = str(datetime.datetime.now()).split(" ")[0]
 
