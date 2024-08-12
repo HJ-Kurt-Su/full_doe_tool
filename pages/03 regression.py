@@ -18,6 +18,12 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve, auc
 
+
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+
 import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
@@ -526,26 +532,36 @@ def main():
             response = "Y2"
             factor = ["R", "r", "t"]
 
-        st.header("Under Construction")
+        # st.header("Under Construction")
         df_x = df_raw[factor]
         df_y = df_raw[response]
 
+        clf_type = st.selectbox("### Choose Classification Method", ["Logistic", "Support Vector"])
         # log_model = sm.Logit(df_y, sm.add_constant(df_x)).fit()
-        log_model = sm.Logit(df_y, df_x).fit()
-            
-        # x_formula = "+".join(factor)
-        # formula = response + "~" + x_formula
-        # st.subheader(formula)
+        if clf_type == "Logistic":
+            log_model = sm.Logit(df_y, df_x).fit()
+                
+            # x_formula = "+".join(factor)
+            # formula = response + "~" + x_formula
+            # st.subheader(formula)
 
-        # log_model = smf.logit(formula, data=df_raw).fit() 
+            # log_model = smf.logit(formula, data=df_raw).fit() 
 
-        log_reg_sum = log_model.summary()
+            log_reg_sum = log_model.summary()
 
-        st.subheader("Model Summary")
-        log_reg_sum
+            st.subheader("Model Summary")
+            log_reg_sum
 
-        y_pred = log_model.predict(df_x)
+            y_pred = log_model.predict(df_x)
         # y_pred
+        elif clf_type == "Support Vector":
+            clf = make_pipeline(StandardScaler(), SVC(gamma='auto'))
+            # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
+            clf_mod = clf.fit(df_x, df_y)
+            y_pred = clf.predict(df_x)
+            # importances = clf_mod.feature_importances_ 
+            # importances
+            # clf.coef_()
 
         fpr, tpr, threshold = roc_curve(df_y, y_pred)
         roc_auc = auc(fpr,tpr)
@@ -569,9 +585,11 @@ def main():
 
         st.subheader("Accuracy Judge")
         threshold_cut = st.selectbox("Choose Threshold", threshold)
-        # threshold_cut = 0.5686
 
-        y_pred_code = y_pred.map(lambda x: 1 if x > threshold_cut else 0)
+        if clf_type == "Support Vector":
+            y_pred = pd.Series(y_pred)
+        y_pred_code = y_pred.map(lambda x: 1 if x >= threshold_cut else 0)
+        # y_pred
         # y_pred_code
         acc = accuracy_score(df_y, y_pred_code)
         cof_mx = confusion_matrix(df_y, y_pred_code)
@@ -601,14 +619,14 @@ def main():
                 file_name=file_name_csv,
                 mime='text/csv')
 
-
-        model_file_name = date + "_model.pickle"
-        
-        st.download_button(label="Download Model",
-                            data=pickle.dumps(log_model),
-                            file_name=model_file_name,
-                            # mime='application/octet-stream'
-                            )
+        if clf_type == "Logistic":
+            model_file_name = date + "_model.pickle"
+            
+            st.download_button(label="Download Model",
+                                data=pickle.dumps(log_model),
+                                file_name=model_file_name,
+                                # mime='application/octet-stream'
+                                )
 
 
 
