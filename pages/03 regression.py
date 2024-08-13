@@ -19,10 +19,12 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve, auc
 
 
-from sklearn.pipeline import make_pipeline
+# from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeClassifier, export_text
+import graphviz
+from sklearn.tree import export_graphviz
 
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -321,7 +323,7 @@ def main():
         st.markdown("----------------") 
     else:
         df_reg = df_raw.copy()
-
+    
 
     if ana_type == "Regression Method":
 
@@ -368,6 +370,11 @@ def main():
             factor = ["R", "r", "t"]
 
         factor_final = factor + factor_2od + factor_inter
+
+        # scaler = StandardScaler()
+        # df_ttmp = df_reg[factor]
+        # df_sc = scaler.fit_transform(df_ttmp)
+        # df_sc
 
         # if st.checkbox('Perform Analysis'):
         x_formula = "+".join(factor_final)
@@ -536,7 +543,7 @@ def main():
         df_x = df_raw[factor]
         df_y = df_raw[response]
 
-        clf_type = st.selectbox("### Choose Classification Method", ["Logistic", "Support Vector"])
+        clf_type = st.selectbox("### Choose Classification Method", ["Logistic", "Support Vector", "Decision Tree"])
         # log_model = sm.Logit(df_y, sm.add_constant(df_x)).fit()
         if clf_type == "Logistic":
             log_model = sm.Logit(df_y, df_x).fit()
@@ -554,11 +561,31 @@ def main():
 
             y_pred = log_model.predict(df_x)
         # y_pred
-        elif clf_type == "Support Vector":
-            clf = make_pipeline(StandardScaler(), SVC(gamma='auto'))
+        elif clf_type == "Support Vector" or "Decision Tree":
+            # clf = make_pipeline(StandardScaler(), SVC(gamma='auto'))
+            scaler = StandardScaler()
+            x = scaler.fit_transform(df_x)
+            st.subheader("Normalize X")
+            st.dataframe(x)
+            
+            if clf_type == "Support Vector":
+                clf = SVC(gamma='auto', kernel="linear")
+            elif clf_type == "Decision Tree":
+                max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
+                clf = DecisionTreeClassifier(max_depth=max_tree_layer)
             # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
-            clf_mod = clf.fit(df_x, df_y)
-            y_pred = clf.predict(df_x)
+            clf.fit(x, df_y)
+            y_pred = clf.predict(x)
+            # feature_importances = clf.feature_importances_
+            if clf_type == "Support Vector":
+                feature_importances = clf.coef_
+            elif clf_type == "Decision Tree":
+                feature_importances = clf.feature_importances_
+                # tree_rules = export_text(clf, feature_names=df_x.columns)
+                # tree_rules
+            st.subheader("Feature Importance")
+            feature_importances
+            
             # importances = clf_mod.feature_importances_ 
             # importances
             # clf.coef_()
@@ -583,19 +610,39 @@ def main():
         st.subheader("ROC Figure")
         st.plotly_chart(fig_roc, use_container_width=True)
 
-        st.subheader("Accuracy Judge")
-        threshold_cut = st.selectbox("Choose Threshold", threshold)
 
-        if clf_type == "Support Vector":
+        if clf_type == "Decision Tree":
+
+            g = export_graphviz(clf,
+                                feature_names=df_x.columns,
+                                class_names=["0","1"],
+                                filled=True)
+
+            st.subheader("Decision Tree")
+            st.graphviz_chart(g)
+
+            # st.plotly_chart(g, use_container_width=True)
+
+        if clf_type == "Support Vector" or "Decision Tree":
             y_pred = pd.Series(y_pred)
+            threshold_cut = 1
+
+
+        if clf_type == "Logistic":
+
+            st.subheader("Accuracy Judge")
+            threshold_cut = st.selectbox("Choose Threshold", threshold)
+
         y_pred_code = y_pred.map(lambda x: 1 if x >= threshold_cut else 0)
         # y_pred
         # y_pred_code
         acc = accuracy_score(df_y, y_pred_code)
         cof_mx = confusion_matrix(df_y, y_pred_code)
-        
-        # acc
+        risk_qty = cof_mx[1, 0]
+        risk =  risk_qty/y_pred_code.size
+  
         st.markdown("### Accuracy is: %s" % round(acc,4))
+        st.markdown("### Risk is: %s" % round(risk,4))
         st.markdown("### Confusion Matrix:")
         st.dataframe(cof_mx)
 
