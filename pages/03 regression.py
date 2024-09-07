@@ -43,7 +43,7 @@ def convert_df(df):
 #     # IMPORTANT: Cache the conversion to prevent computation on every rerun
 #     return df.to_csv().encode('utf-8')
 
-def convert_fig(fig, fig_name):
+def convert_fig(fig):
 
     mybuff = io.StringIO()
    
@@ -65,6 +65,42 @@ def ols_reg(formula, df):
 #   print(df_result.head())
 
   return res, df_result, model
+
+def download_file(name_label, button_label, file, file_type, gui_key):
+    date = str(datetime.datetime.now()).split(" ")[0]
+    if file_type == "csv":
+        file = convert_df(file)  
+        mime_text = 'text/csv'
+    elif file_type == "html":
+        file = convert_fig(file)  
+        mime_text = 'text/html'
+    elif file_type == "pickle":
+        file = pickle.dumps(file)
+        mime_text = ""
+
+    # file_name_col, button_col = st.columns(2)
+    result_file = date + "_lin-reg"
+    download_name = st.text_input(label=name_label, value=result_file, key=gui_key) 
+    download_name = download_name + "." + file_type
+
+    st.download_button(label=button_label,  
+                    data=file, 
+                    file_name=download_name,
+                    mime=mime_text,
+                    key=gui_key+"dl")
+    # with file_name_col:
+    #     result_file = date + "_lin-reg"
+    #     download_name = st.text_input(label=name_label, value=result_file, key=gui_key) 
+        
+    # with button_col:
+    #     download_name = download_name + "." + file_type
+    #     st.download_button(label=button_label,  
+    #                 data=file, 
+    #                 file_name=download_name,
+    #                 mime=mime_text,
+    #                 key=gui_key+"dl")
+
+
 
 # def acquire_qq_data(df_result_resid):
 #   qqplot_data = qqplot(df_result_resid, line='s').gca().lines
@@ -389,38 +425,38 @@ def main():
         else:
             st.markdown("##### Residual is normal distribution")    
 
-        date = str(datetime.datetime.now()).split(" ")[0]
-
-        mybuff = io.StringIO()
-        fig_file_name = date + "_reg-judge.html"
-        # fig_html = fig_pair.write_html(fig_file_name)
-        fig.write_html(mybuff, include_plotlyjs='cdn')
-        html_bytes = mybuff.getvalue().encode()
-
         st.plotly_chart(fig, use_container_width=True)
 
-        csv = convert_df(df_result)
-    
-        # table_filename = doe_type + "_table_" + date
-        result_file = date + "_lin-reg.csv"
-        model_file_name = date + "_model.pickle"
 
-        st.download_button(label='Download statistics result as CSV',  
-                        data=csv, 
-                        file_name=result_file,
-                        mime='text/csv')
-            
-        st.download_button(label="Download figure",
-                            data=html_bytes,
-                            file_name=fig_file_name,
-                            mime='text/html'
-                            )
+        st.markdown("---")
+
+        download_file(name_label="Input Result File Name",
+                      button_label='Download statistics result as CSV',
+                      file=df_result,
+                      file_type="csv",
+                      gui_key="result_data"
+                      )
+
+        st.markdown("---")
+
+        download_file(name_label="Input Figure File Name",
+                      button_label='Download figure as HTML',
+                      file=fig,
+                      file_type="html",
+                      gui_key="figure"
+                      )
         
-        st.download_button(label="Download Model",
-                            data=pickle.dumps(result),
-                            file_name=model_file_name,
-                            # mime='application/octet-stream'
-                            )
+        st.markdown("---")
+
+        download_file(name_label="Input Model File Name",
+                      button_label='Download model as PICKLE',
+                      file=fig,
+                      file_type="pickle",
+                      gui_key="model"
+                      )
+        
+        st.markdown("---")
+
 
     if ana_type == "Taguchi Method":
 
