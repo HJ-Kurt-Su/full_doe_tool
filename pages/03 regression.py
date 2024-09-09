@@ -38,20 +38,6 @@ def convert_df(df):
     # IMPORTANT: Cache the conversion to prevent computation on every rerun
     return df.to_csv(index=False).encode('utf-8')
 
-# @st.cache_data
-# def convert_df(df):
-#     # IMPORTANT: Cache the conversion to prevent computation on every rerun
-#     return df.to_csv().encode('utf-8')
-
-def convert_fig(fig):
-
-    mybuff = io.StringIO()
-   
-    # fig_html = fig_pair.write_html(fig_file_name)
-    fig.write_html(mybuff, include_plotlyjs='cdn')
-    html_bytes = mybuff.getvalue().encode()
-
-    return html_bytes
 
 
 def ols_reg(formula, df):
@@ -66,10 +52,21 @@ def ols_reg(formula, df):
 
   return res, df_result, model
 
+def convert_fig(fig):
+
+    mybuff = io.StringIO()
+   
+    # fig_html = fig_pair.write_html(fig_file_name)
+    fig.write_html(mybuff, include_plotlyjs='cdn')
+    html_bytes = mybuff.getvalue().encode()
+
+    return html_bytes
+
+
 def download_file(name_label, button_label, file, file_type, gui_key):
     date = str(datetime.datetime.now()).split(" ")[0]
     if file_type == "csv":
-        file = convert_df(file)  
+        file = convert_df(file)
         mime_text = 'text/csv'
     elif file_type == "html":
         file = convert_fig(file)  
@@ -79,7 +76,7 @@ def download_file(name_label, button_label, file, file_type, gui_key):
         mime_text = ""
 
     # file_name_col, button_col = st.columns(2)
-    result_file = date + "_lin-reg"
+    result_file = date + "_result"
     download_name = st.text_input(label=name_label, value=result_file, key=gui_key) 
     download_name = download_name + "." + file_type
 
@@ -88,17 +85,7 @@ def download_file(name_label, button_label, file, file_type, gui_key):
                     file_name=download_name,
                     mime=mime_text,
                     key=gui_key+"dl")
-    # with file_name_col:
-    #     result_file = date + "_lin-reg"
-    #     download_name = st.text_input(label=name_label, value=result_file, key=gui_key) 
-        
-    # with button_col:
-    #     download_name = download_name + "." + file_type
-    #     st.download_button(label=button_label,  
-    #                 data=file, 
-    #                 file_name=download_name,
-    #                 mime=mime_text,
-    #                 key=gui_key+"dl")
+
 
 
 
@@ -491,39 +478,53 @@ def main():
 
         st.subheader("Taguchi Factor Lv vs. Mean & SN")
         st.dataframe(df_fac_summary)
+
+        download_file(name_label="Input Result File Name",
+                      button_label='Download Taguchi result as CSV',
+                      file=df_fac_summary,
+                      file_type="csv",
+                      gui_key="tgch_factor_data"
+                      )
+
+        st.markdown("---")
+
         st.subheader("Taguchi Result Summary")
         st.dataframe(df_tgch_summary)
+
+        download_file(name_label="Input Result File Name",
+                      button_label='Download Taguchi result as CSV',
+                      file=df_tgch_summary,
+                      file_type="csv",
+                      gui_key="tgch_summary_data"
+                      )
+
+        st.markdown("---")
+
         st.subheader("Taguchi Factors vs. Mean")
         st.plotly_chart(fig_mean, use_container_width=True)
+
+        download_file(name_label="Input Figure File Name",
+                      button_label='Download Taguchi Mean figure as HTML',
+                      file=fig_mean,
+                      file_type="html",
+                      gui_key="tgch_mean_figure"
+                      )
+        
+        st.markdown("---")
+
         st.subheader("Taguchi Factors vs. SN")
         st.plotly_chart(fig_sn, use_container_width=True)
 
-        date = str(datetime.datetime.now()).split(" ")[0]
-        fig_file_name = date + "_taguchi-mean.html"
-        fig_file_name_sn = date + "_taguchi-sn.html"
-        file_name_csv = date + "_taguchi-factor.csv"
-
-        fig_mean_data = convert_fig(fig_mean, fig_file_name)
-        fig_sn_data = convert_fig(fig_sn, fig_file_name_sn)
-
-        csv = convert_df(df_fac_summary)
-
-        st.download_button(label="Download mean figure",
-                    data=fig_mean_data,
-                    file_name=fig_file_name,
-                    mime='text/html'
-                    )
+        download_file(name_label="Input Figure File Name",
+                      button_label='Download Taguchi Mean figure as HTML',
+                      file=fig_sn,
+                      file_type="html",
+                      gui_key="tgch_sn_figure"
+                      )
         
-        st.download_button(label="Download SN figure",
-            data=fig_sn_data,
-            file_name=fig_file_name_sn,
-            mime='text/html'
-            )
-        
-        st.download_button(label='Download Rsult as CSV',  
-                data=csv, 
-                file_name=file_name_csv,
-                mime='text/csv')
+        st.markdown("---")
+
+
 
 
 
@@ -550,12 +551,18 @@ def main():
  
         st.dataframe(df_result_filter)
 
-        csv_fil = convert_df(df_result_filter)
-        fil_file_name_csv = date + "_taguchi-factor.csv"
-        st.download_button(label='Download filter result as CSV',  
-        data=csv_fil, 
-        file_name=fil_file_name_csv,
-        mime='text/csv')
+        # st.markdown("---")
+
+        download_file(name_label="Input Result File Name",
+                      button_label='Download Taguchi filter result as CSV',
+                      file=df_result_filter,
+                      file_type="csv",
+                      gui_key="filter_result_data"
+                      )
+
+        st.markdown("---")
+
+
 
 
     if ana_type == "2 LV Classification":
@@ -717,38 +724,6 @@ def main():
                         )
         
         st.markdown("---")
-
-
-        # date = str(datetime.datetime.now()).split(" ")[0]
-
-        # fig_file_name_roc = date + "_roc.html"
-        # file_name_csv = date + "_roc.csv"
-
-        # fig_roc_data = convert_fig(fig_roc, fig_file_name_roc)
-
-        # csv = convert_df(df_roc_data)
-
-        # st.download_button(label="Download ROC figure",
-        #     data=fig_roc_data,
-        #     file_name=fig_file_name_roc,
-        #     mime='text/html'
-        #     )
-        
-        # st.download_button(label='Download Rsult as CSV',  
-        #         data=csv, 
-        #         file_name=file_name_csv,
-        #         mime='text/csv')
-
-        # if clf_type == "Logistic":
-        #     model_file_name = date + "_model.pickle"
-            
-        #     st.download_button(label="Download Model",
-        #                         data=pickle.dumps(log_model),
-        #                         file_name=model_file_name,
-        #                         # mime='application/octet-stream'
-        #                         )
-
-
 
 
 
