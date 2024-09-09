@@ -450,7 +450,7 @@ def main():
 
         download_file(name_label="Input Model File Name",
                       button_label='Download model as PICKLE',
-                      file=fig,
+                      file=result,
                       file_type="pickle",
                       gui_key="model"
                       )
@@ -599,10 +599,14 @@ def main():
         # y_pred
         elif clf_type == "Support Vector" or "Decision Tree":
             # clf = make_pipeline(StandardScaler(), SVC(gamma='auto'))
-            scaler = StandardScaler()
-            x = scaler.fit_transform(df_x)
-            st.subheader("Normalize X")
-            st.dataframe(x)
+            nom_choice = st.checkbox("Normalize", value=False)
+            if nom_choice == True:
+                scaler = StandardScaler()
+                x = scaler.fit_transform(df_x)
+                st.subheader("Normalize X")
+                st.dataframe(x)
+            else:
+                x = df_x
             
             if clf_type == "Support Vector":
                 clf = SVC(gamma='auto', kernel="linear")
@@ -612,6 +616,8 @@ def main():
             # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
             clf.fit(x, df_y)
             y_pred = clf.predict(x)
+            # clf.fit(df_x, df_y)
+            # y_pred = clf.predict(df_x)
             # feature_importances = clf.feature_importances_
             if clf_type == "Support Vector":
                 feature_importances = clf.coef_
@@ -682,34 +688,65 @@ def main():
         st.markdown("### Confusion Matrix:")
         st.dataframe(cof_mx)
 
-        date = str(datetime.datetime.now()).split(" ")[0]
+        st.markdown("---")
 
-        fig_file_name_roc = date + "_roc.html"
-        file_name_csv = date + "_roc.csv"
+        download_file(name_label="Input Result File Name",
+                      button_label='Download statistics result as CSV',
+                      file=df_roc_data,
+                      file_type="csv",
+                      gui_key="result_data"
+                      )
 
-        fig_roc_data = convert_fig(fig_roc, fig_file_name_roc)
+        st.markdown("---")
 
-        csv = convert_df(df_roc_data)
-
-        st.download_button(label="Download ROC figure",
-            data=fig_roc_data,
-            file_name=fig_file_name_roc,
-            mime='text/html'
-            )
+        download_file(name_label="Input Figure File Name",
+                      button_label='Download figure as HTML',
+                      file=fig_roc,
+                      file_type="html",
+                      gui_key="figure"
+                      )
         
-        st.download_button(label='Download Rsult as CSV',  
-                data=csv, 
-                file_name=file_name_csv,
-                mime='text/csv')
+        st.markdown("---")
 
         if clf_type == "Logistic":
-            model_file_name = date + "_model.pickle"
+            download_file(name_label="Input Model File Name",
+                        button_label='Download model as PICKLE',
+                        file=log_model,
+                        file_type="pickle",
+                        gui_key="model"
+                        )
+        
+        st.markdown("---")
+
+
+        # date = str(datetime.datetime.now()).split(" ")[0]
+
+        # fig_file_name_roc = date + "_roc.html"
+        # file_name_csv = date + "_roc.csv"
+
+        # fig_roc_data = convert_fig(fig_roc, fig_file_name_roc)
+
+        # csv = convert_df(df_roc_data)
+
+        # st.download_button(label="Download ROC figure",
+        #     data=fig_roc_data,
+        #     file_name=fig_file_name_roc,
+        #     mime='text/html'
+        #     )
+        
+        # st.download_button(label='Download Rsult as CSV',  
+        #         data=csv, 
+        #         file_name=file_name_csv,
+        #         mime='text/csv')
+
+        # if clf_type == "Logistic":
+        #     model_file_name = date + "_model.pickle"
             
-            st.download_button(label="Download Model",
-                                data=pickle.dumps(log_model),
-                                file_name=model_file_name,
-                                # mime='application/octet-stream'
-                                )
+        #     st.download_button(label="Download Model",
+        #                         data=pickle.dumps(log_model),
+        #                         file_name=model_file_name,
+        #                         # mime='application/octet-stream'
+        #                         )
 
 
 
