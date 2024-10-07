@@ -338,7 +338,7 @@ def main():
             "### Choose item", filter_sel,
         )
         st.markdown("----------------")  
-    if filter_req == True:
+    # if filter_req == True:
         df_reg = df_raw[df_raw[filter_para].isin(filter_item)].copy()
         st.markdown("----------------") 
         st.markdown("#### Filter DataFrame")
@@ -583,8 +583,8 @@ def main():
             factor = ["R", "r", "t"]
 
         # st.header("Under Construction")
-        df_x = df_raw[factor]
-        df_y = df_raw[response]
+        df_x = df_reg[factor]
+        df_y = df_reg[response]
 
         clf_type = st.selectbox("### Choose Classification Method", ["Logistic", "Support Vector", "Decision Tree"])
         # log_model = sm.Logit(df_y, sm.add_constant(df_x)).fit()
