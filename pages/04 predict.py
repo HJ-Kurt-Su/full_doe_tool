@@ -7,6 +7,7 @@ from statsmodels.iolib.smpickle import load_pickle
 from io import BytesIO
 import tools
 from sklearn.metrics import r2_score, mean_absolute_percentage_error, max_error, mean_squared_error
+import numpy as np
 
 
 
@@ -129,21 +130,41 @@ def main():
 
     st.markdown("---")
 
-    st.header("Under constrcution performance tool")
-
-    factor_number = st.number_input("Choose Factor Number", value=1, min_value=1)
-
-    # factor_number = 3
-
-    # model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series = backend(df_raw[y], df_predict["prediction"], factor_number)
+    check_performance = st.checkbox("Check Predict Performance")
     
-    # st.markdown("#### $R^2$: %s" % round(model_r2_score, 3))
-    # st.markdown("               ")
-    # st.markdown("#### Adjusted $R^2$: %s" % round(adj_r_squared, 3))
-    # st.markdown("               ")
-    # st.markdown("#### RMSE: %s" % round(model_rmse_score, 3))
-    # st.markdown("               ")
-    # st.markdown("#### MAPE: %s %%" % round(model_mape_score*100, 1))
+    if check_performance == True:
+        
+        uploaded_y = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"])
+        if uploaded_y is None:
+            
+            url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5skYRbfVPGE6RFYIM6Gg9QurH8u3h_RLfjt-CG0z5YgyxWEUTOdvoKmVkfWCLc2ECAuSEKaHVYPOA/pub?gid=0&single=true&output=csv"
+        else: 
+            url = None
+        df_tmp = tools.upload_file(uploaded_y, url)
+
+        if uploaded_y is None:
+            df_y = df_tmp["Y1"]
+            df_yhat = df_tmp["yhat"]
+            
+        else:
+            df_y = df_tmp.copy()
+            df_yhat = df_predict["prediction"]
+            
+
+
+        factor_number = st.number_input("Choose Factor Number", value=1, min_value=1)
+
+        model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series = backend_pefmce(df_y, df_yhat, factor_number)
+            
+        st.markdown("#### $R^2$: %s" % round(model_r2_score, 3))
+        st.markdown("               ")
+        st.markdown("#### Adjusted $R^2$: %s" % round(adj_r_squared, 3))
+        st.markdown("               ")
+        st.markdown("#### RMSE: %s" % round(model_rmse_score, 3))
+        st.markdown("               ")
+        st.markdown("#### MAPE: %s %%" % round(model_mape_score*100, 1))
+            
+        # st.header("Under constrcution performance too")
 
 
 
