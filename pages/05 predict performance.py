@@ -1,10 +1,10 @@
 #%% 匯入套件(包含我們寫好的function檔)
 import pandas as pd 
 import streamlit as st
-import requests
+# import requests
 # from statsmodels.iolib.smpickle import load_pickle
-import datetime
-from io import BytesIO
+# import datetime
+# from io import BytesIO
 from sklearn.metrics import r2_score, mean_absolute_percentage_error, max_error, mean_squared_error
 import numpy as np
 

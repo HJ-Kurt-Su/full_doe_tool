@@ -1,17 +1,18 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import datetime
+# import datetime
 import pyDOE2
 import numpy as np
-import io
+# import io
+import tools
 
 
 
-@st.cache_data
-def convert_df(df):
-    # IMPORTANT: Cache the conversion to prevent computation on every rerun
-    return df.to_csv(index=False).encode('utf-8')
+# @st.cache_data
+# def convert_df(df):
+#     # IMPORTANT: Cache the conversion to prevent computation on every rerun
+#     return df.to_csv(index=False).encode('utf-8')
 
 # @st.cache_data
 # def convert_df(df):
@@ -132,17 +133,24 @@ def main():
     st.markdown("               ")
     st.markdown("               ")
 
-
-    uploaded_csv = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔')
-
-    if uploaded_csv is not None:
-        df_fac = pd.read_csv(uploaded_csv, encoding="utf-8")
-        st.header('您所上傳的CSV檔內容：')
-
+    uploaded_raw = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"])
+    if uploaded_raw is not None:
+        url = None
     else:
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRt_gecFPJZUw3MmI16zI042Z_RaeWj7w-Fs07wLaj-qKymK_K_XwRx-G09IcrqHmHhUQqP8-Qe0cQQ/pub?gid=0&single=true&output=csv"
-        st.header('未上傳檔案，以下為 Demo：')
-        df_fac = pd.read_csv(url, encoding="utf-8")
+
+    df_fac = tools.upload_file(uploaded_raw, url)
+
+    # uploaded_csv = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔')
+
+    # if uploaded_csv is not None:
+    #     df_fac = pd.read_csv(uploaded_csv, encoding="utf-8")
+    #     st.header('您所上傳的CSV檔內容：')
+
+    # else:
+    #     url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRt_gecFPJZUw3MmI16zI042Z_RaeWj7w-Fs07wLaj-qKymK_K_XwRx-G09IcrqHmHhUQqP8-Qe0cQQ/pub?gid=0&single=true&output=csv"
+    #     st.header('未上傳檔案，以下為 Demo：')
+    #     df_fac = pd.read_csv(url, encoding="utf-8")
     
     st.dataframe(df_fac)
 
@@ -223,28 +231,27 @@ def main():
     
     st.plotly_chart(fig_pair, use_container_width=True)
 
-    mybuff = io.StringIO()
-    fig_file_name = doe_type + "_pair-plot-test.html"
-    # fig_html = fig_pair.write_html(fig_file_name)
-    fig_pair.write_html(mybuff, include_plotlyjs='cdn')
-    html_bytes = mybuff.getvalue().encode()
-    
+    st.markdown("---")
 
-    csv = convert_df(df_resp)
-    date = str(datetime.datetime.now()).split(" ")[0]
-    # table_filename = doe_type + "_table_" + date
-    doe_table = doe_type + "_" + date + "_doe-table.csv"
-    st.download_button(label='Download DOE table as CSV', 
-                      data=csv, 
-                      file_name=doe_table,
-                      mime='text/csv')
+    tools.download_file(name_label="Input Result File Name",
+                      button_label='Download DOE result as CSV',
+                      file=df_resp,
+                      file_type="csv",
+                      gui_key="result_data"
+                      )
 
-    st.download_button(label="Download figure",
-                              data=html_bytes,
-                              file_name=fig_file_name,
-                              mime='text/html'
-                              )
+    st.markdown("---")
+
+    tools.download_file(name_label="Input Figure File Name",
+                    button_label='Download figure as HTML',
+                    file=fig_pair,
+                    file_type="html",
+                    gui_key="figure"
+                    )
     
+    st.markdown("---")
+
+ 
 #%% Web App 頁面
 if __name__ == '__main__':
     main()

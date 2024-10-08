@@ -2,41 +2,26 @@ import streamlit as st
 import pandas as pd
 import itertools
 
-import datetime
 import numpy as np
-import io
+
 import statsmodels.formula.api as smf
 import statsmodels.api as sm 
 from scipy.stats import shapiro
 from scipy import stats
-# from statsmodels.graphics.gofplots import qqplot
 
 
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
-from sklearn.metrics import classification_report
-from sklearn.metrics import roc_auc_score
+
 from sklearn.metrics import roc_curve, auc
 
-
-# from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier, export_text
-import graphviz
-from sklearn.tree import export_graphviz
 
 import plotly.express as px
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 
-import pickle
+import tools
 
-
-@st.cache_data
-def convert_df(df):
-    # IMPORTANT: Cache the conversion to prevent computation on every rerun
-    return df.to_csv(index=False).encode('utf-8')
 
 
 
@@ -51,41 +36,6 @@ def ols_reg(formula, df):
 #   print(df_result.head())
 
   return res, df_result, model
-
-def convert_fig(fig):
-
-    mybuff = io.StringIO()
-   
-    # fig_html = fig_pair.write_html(fig_file_name)
-    fig.write_html(mybuff, include_plotlyjs='cdn')
-    html_bytes = mybuff.getvalue().encode()
-
-    return html_bytes
-
-
-def download_file(name_label, button_label, file, file_type, gui_key):
-    date = str(datetime.datetime.now()).split(" ")[0]
-    if file_type == "csv":
-        file = convert_df(file)
-        mime_text = 'text/csv'
-    elif file_type == "html":
-        file = convert_fig(file)  
-        mime_text = 'text/html'
-    elif file_type == "pickle":
-        file = pickle.dumps(file)
-        mime_text = ""
-
-    # file_name_col, button_col = st.columns(2)
-    result_file = date + "_result"
-    download_name = st.text_input(label=name_label, value=result_file, key=gui_key) 
-    download_name = download_name + "." + file_type
-
-    st.download_button(label=button_label,  
-                    data=file, 
-                    file_name=download_name,
-                    mime=mime_text,
-                    key=gui_key+"dl")
-
 
 
 
@@ -301,7 +251,7 @@ def main():
     st.markdown("               ")
 
 
-    uploaded_csv = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔')
+    uploaded_raw = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"])
     # uploaded_csv = st.file_uploader('#### 選擇您要上傳的CSV檔')
 
     ana_type = st.selectbox("Choose Analysis Mehthd", ["Regression Method", "Taguchi Method", "2 LV Classification"])
@@ -314,17 +264,13 @@ def main():
 
     elif ana_type == "2 LV Classification":
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSAL6t_HNdjVhKPyDzt-fVMHqT7ZZnWPrKLIY-QveQxF9vMbR-HbRwcDBM1MEyUjnHkC0JWKbL2TjP0/pub?gid=0&single=true&output=csv"
-
-    if uploaded_csv is not None:
-        df_raw = pd.read_csv(uploaded_csv, encoding="utf-8")
-        st.header('您所上傳的CSV檔內容：')
-
-        # fac_n = df_fac.shape[1]
     else:
-        st.header('未上傳檔案，以下為 Demo：')
-        df_raw = pd.read_csv(url, encoding="utf-8")
+        url = None
 
+
+    df_raw = tools.upload_file(uploaded_raw, url)
     st.dataframe(df_raw)
+
     select_list = list(df_raw.columns)
 
     filter_req = st.checkbox('Filter Data')
@@ -387,7 +333,7 @@ def main():
         # factor
         # factor_final = factor + factor_inter  
 
-        if uploaded_csv is None:
+        if uploaded_raw is None:
             st.header('未上傳檔案，以下為 Demo：')
             response = "Y1"
             factor = ["R", "r", "t"]
@@ -417,7 +363,7 @@ def main():
 
         st.markdown("---")
 
-        download_file(name_label="Input Result File Name",
+        tools.download_file(name_label="Input Result File Name",
                       button_label='Download statistics result as CSV',
                       file=df_result,
                       file_type="csv",
@@ -426,7 +372,7 @@ def main():
 
         st.markdown("---")
 
-        download_file(name_label="Input Figure File Name",
+        tools.download_file(name_label="Input Figure File Name",
                       button_label='Download figure as HTML',
                       file=fig,
                       file_type="html",
@@ -435,7 +381,7 @@ def main():
         
         st.markdown("---")
 
-        download_file(name_label="Input Model File Name",
+        tools.download_file(name_label="Input Model File Name",
                       button_label='Download model as PICKLE',
                       file=result,
                       file_type="pickle",
@@ -466,7 +412,7 @@ def main():
 
         target_type = st.selectbox("### Choose Traget", ["larger best", "nominal best", "smaller best"])
 
-        if uploaded_csv is None:
+        if uploaded_raw is None:
             st.header('未上傳檔案，以下為 Demo：')
             responses = ["Z1", "Z2", "Z3"]
             factors = ["R", "r", "t"]
@@ -479,7 +425,7 @@ def main():
         st.subheader("Taguchi Factor Lv vs. Mean & SN")
         st.dataframe(df_fac_summary)
 
-        download_file(name_label="Input Result File Name",
+        tools.download_file(name_label="Input Result File Name",
                       button_label='Download Taguchi result as CSV',
                       file=df_fac_summary,
                       file_type="csv",
@@ -491,7 +437,7 @@ def main():
         st.subheader("Taguchi Result Summary")
         st.dataframe(df_tgch_summary)
 
-        download_file(name_label="Input Result File Name",
+        tools.download_file(name_label="Input Result File Name",
                       button_label='Download Taguchi result as CSV',
                       file=df_tgch_summary,
                       file_type="csv",
@@ -503,7 +449,7 @@ def main():
         st.subheader("Taguchi Factors vs. Mean")
         st.plotly_chart(fig_mean, use_container_width=True)
 
-        download_file(name_label="Input Figure File Name",
+        tools.download_file(name_label="Input Figure File Name",
                       button_label='Download Taguchi Mean figure as HTML',
                       file=fig_mean,
                       file_type="html",
@@ -515,7 +461,7 @@ def main():
         st.subheader("Taguchi Factors vs. SN")
         st.plotly_chart(fig_sn, use_container_width=True)
 
-        download_file(name_label="Input Figure File Name",
+        tools.download_file(name_label="Input Figure File Name",
                       button_label='Download Taguchi Mean figure as HTML',
                       file=fig_sn,
                       file_type="html",
@@ -553,7 +499,7 @@ def main():
 
         # st.markdown("---")
 
-        download_file(name_label="Input Result File Name",
+        tools.download_file(name_label="Input Result File Name",
                       button_label='Download Taguchi filter result as CSV',
                       file=df_result_filter,
                       file_type="csv",
@@ -577,7 +523,7 @@ def main():
         if not factor:
             st.error("Please select at least one factor.")
 
-        if uploaded_csv is None:
+        if uploaded_raw is None:
             st.header('未上傳檔案，以下為 Demo：')
             response = "Y2"
             factor = ["R", "r", "t"]
@@ -586,58 +532,23 @@ def main():
         df_x = df_reg[factor]
         df_y = df_reg[response]
 
-        clf_type = st.selectbox("### Choose Classification Method", ["Logistic", "Support Vector", "Decision Tree"])
-        # log_model = sm.Logit(df_y, sm.add_constant(df_x)).fit()
-        if clf_type == "Logistic":
-            log_model = sm.Logit(df_y, df_x).fit()
-                
-            # x_formula = "+".join(factor)
-            # formula = response + "~" + x_formula
-            # st.subheader(formula)
-
-            # log_model = smf.logit(formula, data=df_raw).fit() 
-
-            log_reg_sum = log_model.summary()
-
-            st.subheader("Model Summary")
-            log_reg_sum
-
-            y_pred = log_model.predict(df_x)
-        # y_pred
-        elif clf_type == "Support Vector" or "Decision Tree":
-            # clf = make_pipeline(StandardScaler(), SVC(gamma='auto'))
-            nom_choice = st.checkbox("Normalize", value=False)
-            if nom_choice == True:
-                scaler = StandardScaler()
-                x = scaler.fit_transform(df_x)
-                st.subheader("Normalize X")
-                st.dataframe(x)
-            else:
-                x = df_x
+        # clf_type = st.selectbox("### Choose Classification Method", ["Logistic", "Support Vector", "Decision Tree"])
+        # # log_model = sm.Logit(df_y, sm.add_constant(df_x)).fit()
+        # if clf_type == "Logistic":
+        log_model = sm.Logit(df_y, df_x).fit()
             
-            if clf_type == "Support Vector":
-                clf = SVC(gamma='auto', kernel="linear")
-            elif clf_type == "Decision Tree":
-                max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
-                clf = DecisionTreeClassifier(max_depth=max_tree_layer)
-            # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
-            clf.fit(x, df_y)
-            y_pred = clf.predict(x)
-            # clf.fit(df_x, df_y)
-            # y_pred = clf.predict(df_x)
-            # feature_importances = clf.feature_importances_
-            if clf_type == "Support Vector":
-                feature_importances = clf.coef_
-            elif clf_type == "Decision Tree":
-                feature_importances = clf.feature_importances_
-                # tree_rules = export_text(clf, feature_names=df_x.columns)
-                # tree_rules
-            st.subheader("Feature Importance")
-            feature_importances
-            
-            # importances = clf_mod.feature_importances_ 
-            # importances
-            # clf.coef_()
+        # x_formula = "+".join(factor)
+        # formula = response + "~" + x_formula
+        # st.subheader(formula)
+
+        # log_model = smf.logit(formula, data=df_raw).fit() 
+
+        log_reg_sum = log_model.summary()
+
+        st.subheader("Model Summary")
+        log_reg_sum
+
+        y_pred = log_model.predict(df_x)
 
         fpr, tpr, threshold = roc_curve(df_y, y_pred)
         roc_auc = auc(fpr,tpr)
@@ -659,28 +570,8 @@ def main():
         st.subheader("ROC Figure")
         st.plotly_chart(fig_roc, use_container_width=True)
 
-
-        if clf_type == "Decision Tree":
-
-            g = export_graphviz(clf,
-                                feature_names=df_x.columns,
-                                class_names=["0","1"],
-                                filled=True)
-
-            st.subheader("Decision Tree")
-            st.graphviz_chart(g)
-
-            # st.plotly_chart(g, use_container_width=True)
-
-        if clf_type == "Support Vector" or "Decision Tree":
-            y_pred = pd.Series(y_pred)
-            threshold_cut = 1
-
-
-        if clf_type == "Logistic":
-
-            st.subheader("Accuracy Judge")
-            threshold_cut = st.selectbox("Choose Threshold", threshold)
+        st.subheader("Accuracy Judge")
+        threshold_cut = st.selectbox("Choose Threshold", threshold)
 
         y_pred_code = y_pred.map(lambda x: 1 if x >= threshold_cut else 0)
         # y_pred
@@ -697,7 +588,7 @@ def main():
 
         st.markdown("---")
 
-        download_file(name_label="Input Result File Name",
+        tools.download_file(name_label="Input Result File Name",
                       button_label='Download statistics result as CSV',
                       file=df_roc_data,
                       file_type="csv",
@@ -706,7 +597,7 @@ def main():
 
         st.markdown("---")
 
-        download_file(name_label="Input Figure File Name",
+        tools.download_file(name_label="Input Figure File Name",
                       button_label='Download figure as HTML',
                       file=fig_roc,
                       file_type="html",
@@ -715,14 +606,14 @@ def main():
         
         st.markdown("---")
 
-        if clf_type == "Logistic":
-            download_file(name_label="Input Model File Name",
-                        button_label='Download model as PICKLE',
-                        file=log_model,
-                        file_type="pickle",
-                        gui_key="model"
-                        )
-        
+        # if clf_type == "Logistic":
+        tools.download_file(name_label="Input Model File Name",
+                    button_label='Download model as PICKLE',
+                    file=log_model,
+                    file_type="pickle",
+                    gui_key="model"
+                    )
+    
         st.markdown("---")
 
 

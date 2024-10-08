@@ -2,18 +2,19 @@ import streamlit as st
 import pandas as pd
 import itertools
 
-import datetime
+# import datetime
 import numpy as np
-import io
+# import io
 import plotly.express as px
 # from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 import plotly.figure_factory as ff
+import tools
 
-@st.cache_data
-def convert_df(df):
-    # IMPORTANT: Cache the conversion to prevent computation on every rerun
-    return df.to_csv(index=False).encode('utf-8')
+# @st.cache_data
+# def convert_df(df):
+#     # IMPORTANT: Cache the conversion to prevent computation on every rerun
+#     return df.to_csv(index=False).encode('utf-8')
 
 
 def backend(fig_type, df_plot, para):
@@ -182,16 +183,14 @@ def main():
     st.markdown("               ")
     st.markdown("               ")
 
-    uploaded_csv = st.sidebar.file_uploader("請上傳您的 CSV 檔案", type=["csv"])
-
-    if uploaded_csv is not None:
-        df_raw = pd.read_csv(uploaded_csv, encoding="utf-8")
-        st.header('您所上傳的CSV檔內容：')
-
+    uploaded_raw = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"])
+    if uploaded_raw is not None:
+        url = None
     else:
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
-        st.header('未上傳檔案，以下為 Demo：')
-        df_raw = pd.read_csv(url, encoding="utf-8")
+
+    df_raw = tools.upload_file(uploaded_raw, url)
+
     
     st.dataframe(df_raw)
     st.markdown("**Data Description**")
@@ -311,18 +310,17 @@ def main():
     fig = backend(fig_type, df_plot, para)
     st.plotly_chart(fig, use_container_width=True)
 
-    date = str(datetime.datetime.now()).split(" ")[0]
-    mybuff = io.StringIO()
-    fig_file_name = date + "_" + fig_type + ".html"
-    # fig_html = fig_pair.write_html(fig_file_name)
-    fig.write_html(mybuff, include_plotlyjs='cdn')
-    html_bytes = mybuff.getvalue().encode()
+    st.markdown("---")
 
-    st.download_button(label="Download figure",
-                        data=html_bytes,
-                        file_name=fig_file_name,
-                        mime='text/html'
-                        )
+    tools.download_file(name_label="Input Figure File Name",
+                    button_label='Download figure as HTML',
+                    file=fig,
+                    file_type="html",
+                    gui_key="figure"
+                    )
+    
+    st.markdown("---")
+
 
 #%% Web App 頁面
 if __name__ == '__main__':
