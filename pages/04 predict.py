@@ -26,25 +26,25 @@ def backend(uploaded_model, df_raw):
     return df_raw
 
 
-def backend_pefmce(y, prediction, p):
-  # Target: calculate model metrics (r2, mape, rmse)
-  # Input: actual Y, predict Y, factor number
-  # Use sklearn metrice module to calculate metrics
+# def backend_pefmce(y, prediction, p):
+#   # Target: calculate model metrics (r2, mape, rmse)
+#   # Input: actual Y, predict Y, factor number
+#   # Use sklearn metrice module to calculate metrics
 
-  model_r2_score = r2_score(y, prediction)
-  n = len(y)
+#   model_r2_score = r2_score(y, prediction)
+#   n = len(y)
 
-  adj_r_squared = 1 - (1 - model_r2_score) * (n-1)/(n-p-1)
+#   adj_r_squared = 1 - (1 - model_r2_score) * (n-1)/(n-p-1)
 
-  model_mape_score = mean_absolute_percentage_error(y, prediction)
+#   model_mape_score = mean_absolute_percentage_error(y, prediction)
 
-  epsilon = np.finfo(np.float64).eps
-  mape = np.abs(prediction - y) / np.maximum(np.abs(y), epsilon)
-  mape_series = pd.Series(mape)
+#   epsilon = np.finfo(np.float64).eps
+#   mape = np.abs(prediction - y) / np.maximum(np.abs(y), epsilon)
+#   mape_series = pd.Series(mape)
 
-  model_rmse_score = mean_squared_error(y, prediction, squared=False)
+#   model_rmse_score = mean_squared_error(y, prediction, squared=False)
 
-  return model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series
+#   return model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series
 
 
 #%% 頁面呈現
@@ -133,6 +133,12 @@ def main():
     check_performance = st.checkbox("Check Predict Performance")
     
     if check_performance == True:
+
+        real_y = st.radio(
+
+            "**Real Y From:**",
+            ["another upload", "original data"])
+
         
         uploaded_y = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"])
         if uploaded_y is None:
@@ -152,9 +158,9 @@ def main():
             
 
 
-        factor_number = st.number_input("Choose Factor Number", value=1, min_value=1)
+        factor_number = st.number_input("Choose Factor Number", value=2, min_value=2)
 
-        model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series = backend_pefmce(df_y, df_yhat, factor_number)
+        model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series = tools.backend_pefmce(df_y, df_yhat, factor_number)
             
         st.markdown("#### $R^2$: %s" % round(model_r2_score, 3))
         st.markdown("               ")

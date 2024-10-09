@@ -1,3 +1,9 @@
+"""
+Common use tool for Streamlit UI & regression tool
+
+"""
+
+
 import streamlit as st
 import pandas as pd
 # import itertools
@@ -6,6 +12,9 @@ import datetime
 import numpy as np
 import io
 import pickle
+
+
+from sklearn.metrics import r2_score, mean_absolute_percentage_error, max_error, mean_squared_error
 
 
 
@@ -68,3 +77,29 @@ def download_file(name_label, button_label, file, file_type, gui_key):
                     file_name=download_name,
                     mime=mime_text,
                     key=gui_key+"dl")
+    
+
+
+## Model performance tool
+
+
+def backend_pefmce(y, prediction, p):
+  
+  # Target: calculate model metrics (r2, mape, rmse)
+  # Input: actual Y, predict Y, factor number
+  # Use sklearn metrice module to calculate metrics
+
+    model_r2_score = r2_score(y, prediction)
+    n = len(y)
+
+    adj_r_squared = 1 - (1 - model_r2_score) * (n-1)/(n-p-1)
+
+    model_mape_score = mean_absolute_percentage_error(y, prediction)
+
+    epsilon = np.finfo(np.float64).eps
+    mape = np.abs(prediction - y) / np.maximum(np.abs(y), epsilon)
+    mape_series = pd.Series(mape)
+
+    model_rmse_score = mean_squared_error(y, prediction, squared=False)
+
+    return model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series

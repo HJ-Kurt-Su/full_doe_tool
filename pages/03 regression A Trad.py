@@ -37,6 +37,77 @@ def ols_reg(formula, df):
 
   return res, df_result, model
 
+def reg_save(df_result, fig, model):
+        st.markdown("---")
+
+        tools.download_file(name_label="Input Result File Name",
+                      button_label='Download statistics result as CSV',
+                      file=df_result,
+                      file_type="csv",
+                      gui_key="result_data"
+                      )
+
+        st.markdown("---")
+
+        tools.download_file(name_label="Input Figure File Name",
+                      button_label='Download figure as HTML',
+                      file=fig,
+                      file_type="html",
+                      gui_key="figure"
+                      )
+        
+        st.markdown("---")
+
+        tools.download_file(name_label="Input Model File Name",
+                      button_label='Download model as PICKLE',
+                      file=model,
+                      file_type="pickle",
+                      gui_key="model"
+                      )
+        
+        st.markdown("---")
+
+
+def clf_score(y, y_predict, gui_key):
+        fpr, tpr, threshold = roc_curve(y, y_predict)
+        roc_auc = auc(fpr,tpr)
+        # df_y
+        # y_pred
+
+        st.markdown("### AUC is: %s" % round(roc_auc,4))
+
+        dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
+        df_roc_data = pd.DataFrame.from_dict(dict_sum)
+        st.subheader("ROC Data")
+        df_roc_data
+        
+        fig_size=640
+
+        fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels=roc_auc, 
+                          range_x=[0,1], range_y=[0,1.1], width=fig_size, height=fig_size)
+        
+        st.subheader("ROC Figure")
+        st.plotly_chart(fig_roc, use_container_width=True)
+
+        st.subheader("Accuracy Judge")
+        threshold_cut = st.selectbox("Choose Threshold", threshold, key=gui_key)
+
+        y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
+        # y_pred
+        # y_pred_code
+        acc = accuracy_score(y, y_pred_code)
+        cof_mx = confusion_matrix(y, y_pred_code)
+        risk_qty = cof_mx[1, 0]
+        risk =  risk_qty/y_pred_code.size
+  
+        st.markdown("### Accuracy is: %s" % round(acc,4))
+        st.markdown("### Risk is: %s" % round(risk,4))
+        st.markdown("### Confusion Matrix:")
+        st.dataframe(cof_mx)
+
+        st.markdown("---")
+        return df_roc_data, fig_roc
+
 
 
 # def acquire_qq_data(df_result_resid):
@@ -360,35 +431,72 @@ def main():
 
         st.plotly_chart(fig, use_container_width=True)
 
+        reg_save(df_result, fig, result)
 
-        st.markdown("---")
+        predict_performance = st.checkbox("Predict New Data & Check Performance", key="reg")
 
-        tools.download_file(name_label="Input Result File Name",
-                      button_label='Download statistics result as CSV',
-                      file=df_result,
-                      file_type="csv",
-                      gui_key="result_data"
-                      )
-
-        st.markdown("---")
-
-        tools.download_file(name_label="Input Figure File Name",
-                      button_label='Download figure as HTML',
-                      file=fig,
-                      file_type="html",
-                      gui_key="figure"
-                      )
+        if predict_performance == True:
+            st.subheader("**Predict Portion**")
         
-        st.markdown("---")
+            uploaded_df = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"], key="predict")
 
-        tools.download_file(name_label="Input Model File Name",
-                      button_label='Download model as PICKLE',
-                      file=result,
-                      file_type="pickle",
-                      gui_key="model"
-                      )
-        
-        st.markdown("---")
+            if uploaded_df is None:
+                
+                url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
+
+            else: 
+                url = None
+            df_test = tools.upload_file(uploaded_df, url)
+
+            y_hat = result.predict(df_test)
+            st.markdown("Predict Result:")
+            
+            df_test["predict"] = y_hat
+            st.dataframe(df_test)
+            
+            tools.download_file(name_label="Input Predict File Name",
+                            button_label='Download predict result as CSV',
+                            file=df_test,
+                            file_type="csv",
+                            gui_key="predict_data"
+                            )
+
+            st.markdown("---")
+
+            check_pefmce = st.checkbox("Check Model Performance")
+
+            if check_pefmce == True:
+                st.subheader("**Model Perfomance Portion**")
+
+                uploaded_y = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"], key="up_y")
+
+                if uploaded_y is None:
+                    
+                    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5skYRbfVPGE6RFYIM6Gg9QurH8u3h_RLfjt-CG0z5YgyxWEUTOdvoKmVkfWCLc2ECAuSEKaHVYPOA/pub?gid=0&single=true&output=csv"
+
+                else: 
+                    url = None
+
+                df_y = tools.upload_file(uploaded_y, url)
+                df_y
+                select_list = list(df_raw.columns)
+                y = st.selectbox("Please select real value", select_list)
+                df_y = df_y[y]
+                # df_y
+
+                factor_number = st.number_input("Choose Factor Number", value=2, min_value=2)
+
+                model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series = tools.backend_pefmce(df_y, y_hat, factor_number)
+                    
+                st.markdown("#### $R^2$: %s" % round(model_r2_score, 3))
+                st.markdown("               ")
+                st.markdown("#### Adjusted $R^2$: %s" % round(adj_r_squared, 3))
+                st.markdown("               ")
+                st.markdown("#### RMSE: %s" % round(model_rmse_score, 3))
+                st.markdown("               ")
+                st.markdown("#### MAPE: %s %%" % round(model_mape_score*100, 1))
+                
+
 
 
     if ana_type == "Taguchi Method":
@@ -532,16 +640,9 @@ def main():
         df_x = df_reg[factor]
         df_y = df_reg[response]
 
-        # clf_type = st.selectbox("### Choose Classification Method", ["Logistic", "Support Vector", "Decision Tree"])
-        # # log_model = sm.Logit(df_y, sm.add_constant(df_x)).fit()
-        # if clf_type == "Logistic":
+
         log_model = sm.Logit(df_y, df_x).fit()
             
-        # x_formula = "+".join(factor)
-        # formula = response + "~" + x_formula
-        # st.subheader(formula)
-
-        # log_model = smf.logit(formula, data=df_raw).fit() 
 
         log_reg_sum = log_model.summary()
 
@@ -550,71 +651,77 @@ def main():
 
         y_pred = log_model.predict(df_x)
 
-        fpr, tpr, threshold = roc_curve(df_y, y_pred)
-        roc_auc = auc(fpr,tpr)
-        # df_y
-        # y_pred
+        df_roc_data, fig_roc = clf_score(df_y, y_pred, gui_key= "classify_roc")
 
-        st.markdown("### AUC is: %s" % round(roc_auc,4))
+        reg_save(df_roc_data, fig_roc, log_model)
 
-        dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
-        df_roc_data = pd.DataFrame.from_dict(dict_sum)
-        st.subheader("ROC Data")
-        df_roc_data
+
+        predict_performance = st.checkbox("Predict New Data & Check Performance", key="clf")
+
+        if predict_performance == True:
+            st.subheader("**Predict Portion**")
         
-        fig_size=640
+            uploaded_df = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"], key="predict")
 
-        fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels=roc_auc, 
-                          range_x=[0,1], range_y=[0,1.1], width=fig_size, height=fig_size)
-        
-        st.subheader("ROC Figure")
-        st.plotly_chart(fig_roc, use_container_width=True)
+            if uploaded_df is None:
+                
+                url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
 
-        st.subheader("Accuracy Judge")
-        threshold_cut = st.selectbox("Choose Threshold", threshold)
+            else: 
+                url = None
+            df_test = tools.upload_file(uploaded_df, url)
 
-        y_pred_code = y_pred.map(lambda x: 1 if x >= threshold_cut else 0)
-        # y_pred
-        # y_pred_code
-        acc = accuracy_score(df_y, y_pred_code)
-        cof_mx = confusion_matrix(df_y, y_pred_code)
-        risk_qty = cof_mx[1, 0]
-        risk =  risk_qty/y_pred_code.size
-  
-        st.markdown("### Accuracy is: %s" % round(acc,4))
-        st.markdown("### Risk is: %s" % round(risk,4))
-        st.markdown("### Confusion Matrix:")
-        st.dataframe(cof_mx)
+            y_hat = log_model.predict(df_test)
+            st.markdown("Predict Result:")
+            
+            df_test["predict"] = y_hat
+            st.dataframe(df_test)
+            
+            tools.download_file(name_label="Input Predict File Name",
+                            button_label='Download predict result as CSV',
+                            file=df_test,
+                            file_type="csv",
+                            gui_key="predict_data"
+                            )
 
-        st.markdown("---")
+            st.markdown("---")
 
-        tools.download_file(name_label="Input Result File Name",
-                      button_label='Download statistics result as CSV',
-                      file=df_roc_data,
-                      file_type="csv",
-                      gui_key="result_data"
-                      )
+            check_pefmce = st.checkbox("Check Model Performance")
 
-        st.markdown("---")
+            if check_pefmce == True:
+                st.subheader("**Model Perfomance Portion**")
+                st.subheader("**Under Construction**")
 
-        tools.download_file(name_label="Input Figure File Name",
-                      button_label='Download figure as HTML',
-                      file=fig_roc,
-                      file_type="html",
-                      gui_key="figure"
-                      )
-        
-        st.markdown("---")
+                uploaded_y = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"], key="up_y")
 
-        # if clf_type == "Logistic":
-        tools.download_file(name_label="Input Model File Name",
-                    button_label='Download model as PICKLE',
-                    file=log_model,
-                    file_type="pickle",
-                    gui_key="model"
-                    )
-    
-        st.markdown("---")
+                if uploaded_y is None:
+                    
+                    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5skYRbfVPGE6RFYIM6Gg9QurH8u3h_RLfjt-CG0z5YgyxWEUTOdvoKmVkfWCLc2ECAuSEKaHVYPOA/pub?gid=0&single=true&output=csv"
+
+                else: 
+                    url = None
+
+                df_y = tools.upload_file(uploaded_y, url)
+                # df_y
+                select_list = list(df_raw.columns)
+                y = st.selectbox("Please select real value", select_list)
+                df_y = df_y[y]
+
+                clf_score(df_y, y_hat, gui_key= "performance_roc")
+                # df_y
+
+                # factor_number = st.number_input("Choose Factor Number", value=2, min_value=2)
+
+                # model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series = tools.backend_pefmce(df_y, y_hat, factor_number)
+                    
+                # st.markdown("#### $R^2$: %s" % round(model_r2_score, 3))
+                # st.markdown("               ")
+                # st.markdown("#### Adjusted $R^2$: %s" % round(adj_r_squared, 3))
+                # st.markdown("               ")
+                # st.markdown("#### RMSE: %s" % round(model_rmse_score, 3))
+                # st.markdown("               ")
+                # st.markdown("#### MAPE: %s %%" % round(model_mape_score*100, 1))
+                
 
 
 
