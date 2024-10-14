@@ -17,6 +17,7 @@ from sklearn.metrics import confusion_matrix
 # from sklearn.metrics import classification_report
 # from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve, auc
+from sklearn.inspection import permutation_importance
 
 
 # from sklearn.pipeline import make_pipeline
@@ -25,6 +26,13 @@ from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier, export_text
 import graphviz
 from sklearn.tree import export_graphviz
+# from sklearn.cluster import KMeans
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.gaussian_process.kernels import RBF
+
 
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -40,6 +48,57 @@ import tools
 # color_sequence = ["#65BFA1", "#A4D6C1", "#D5EBE1", "#EBF5EC", "#00A0DF", "#81CDE4", "#BFD9E2"]
 color_sequence = px.colors.qualitative.Pastel
 template = "simple_white"
+
+
+def clf_score_sklearn(y, y_predict):
+        # thresh_key = gui_key["threshold"]
+        # thresh_check_key = gui_key["threshold_check"]
+        fpr, tpr, threshold = roc_curve(y, y_predict)
+        roc_auc = auc(fpr,tpr)
+        # df_y
+        # y_pred
+
+        st.markdown("### AUC is: %s" % round(roc_auc,4))
+
+        dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
+        df_roc_data = pd.DataFrame.from_dict(dict_sum)
+        st.subheader("ROC Data")
+        df_roc_data
+        
+        fig_size=640
+
+        fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels=roc_auc, 
+                          range_x=[0,1], range_y=[0,1.1], width=fig_size, height=fig_size)
+        
+        st.subheader("ROC Figure")
+        st.plotly_chart(fig_roc, use_container_width=True)
+
+        # st.subheader("Accuracy Judge")
+        # key_in = st.checkbox("Key-in threshold", key=thresh_check_key)
+        # if key_in == True:
+        #     threshold_cut = st.number_input("Key-in thershold value", min_value=0.0001, max_value=0.9999, value=0.5)
+        # else:
+        #     threshold_cut = st.selectbox("Choose Threshold", threshold, key=thresh_key)
+
+        # y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
+        # y_pred
+        # y_pred_code
+        acc = accuracy_score(y, y_predict)
+        cof_mx = confusion_matrix(y, y_predict)
+        df_cof_mx  = pd.DataFrame(cof_mx)
+        df_cof_mx = df_cof_mx.rename(columns={0: "Predict Pass", 1: "Predict Fail"}, index={0: "Real Pass", 1: "Real Fail"})
+        risk_qty = cof_mx[1, 0]
+        risk =  risk_qty/y_predict.size
+  
+        st.markdown("### Accuracy is: %s" % round(acc,4))
+        st.markdown("### Risk is: %s" % round(risk,4))
+        st.markdown("### Confusion Matrix:")
+        st.dataframe(df_cof_mx)
+
+        st.markdown("---")
+        return df_roc_data, fig_roc
+
+
   
 def backend(df_reg, formula, fig_size):
     # df_reg = df_raw.copy()
@@ -112,48 +171,85 @@ def backend(df_reg, formula, fig_size):
 def backend_clf(df_x, df_y, clf_type):
 
 
-    if clf_type == "Support Vector" or "Decision Tree":
+    # if clf_type == "Support Vector" or "Decision Tree" or "K-Means" or "Navie Bayes":
         # clf = make_pipeline(StandardScaler(), SVC(gamma='auto'))
-        nom_choice = st.checkbox("Normalize", value=False)
-        if nom_choice == True:
-            scaler = StandardScaler()
-            x = scaler.fit_transform(df_x)
-            st.subheader("Normalize X")
-            st.dataframe(x)
-        else:
-            x = df_x
-        
-        if clf_type == "Support Vector":
-            clf = SVC(gamma='auto', kernel="linear")
-        elif clf_type == "Decision Tree":
-            max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
-            clf = DecisionTreeClassifier(max_depth=max_tree_layer)
-        # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
-        clf.fit(x, df_y)
-        y_pred = clf.predict(x)
-        # clf.fit(df_x, df_y)
-        # y_pred = clf.predict(df_x)
-        # feature_importances = clf.feature_importances_
-        if clf_type == "Support Vector":
-            st.subheader("Only For Reference")
-            feature_importances = clf.coef_
-        elif clf_type == "Decision Tree":
-            feature_importances = clf.feature_importances_
-            # tree_rules = export_text(clf, feature_names=df_x.columns)
-            # tree_rules
-        st.subheader("Feature Importance")
-        feature_importances
-        
-        # importances = clf_mod.feature_importances_ 
-        # importances
-        # clf.coef_()
-
-    fpr, tpr, threshold = roc_curve(df_y, y_pred)
-    dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
-    df_roc_data = pd.DataFrame.from_dict(dict_sum)
-    roc_auc = auc(fpr,tpr)
+    nom_choice = st.checkbox("Normalize Factor", value=False)
+    if nom_choice == True:
+        scaler = StandardScaler()
+        x = scaler.fit_transform(df_x)
+        st.subheader("Normalize X")
+        st.dataframe(x)
+    else:
+        x = df_x
     
-    return df_roc_data, roc_auc, clf, y_pred
+    if clf_type == "Support Vector":
+        clf = SVC(gamma='auto', kernel="linear")
+    elif clf_type == "Decision Tree":
+        max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
+        clf = DecisionTreeClassifier(max_depth=max_tree_layer)
+    elif clf_type == "K-Means":
+        st.subheader("Under Construction")
+        cluster_num = st.number_input("Setup Cluster Q'ty", min_value=1, max_value=10, value=2)
+        clf = KNeighborsClassifier(n_neighbors=cluster_num)
+    elif clf_type == "Navie Bayes":
+        clf = GaussianNB()
+    elif clf_type == "Gaussian Process":
+        kernel = 1.0 * RBF(1.0)
+        clf = GaussianProcessClassifier(kernel=kernel)
+    # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
+    clf.fit(x, df_y)
+    y_pred = clf.predict(x)
+    # proba = clf.predict_proba(x)
+    # proba
+    # clf.fit(df_x, df_y)
+    # y_pred = clf.predict(df_x)
+    # feature_importances = clf.feature_importances_
+    if clf_type == "Support Vector":
+        st.subheader("SVC Model Coefficence")
+        coef_svc = clf.coef_
+        coef_svc
+    if clf_type == "Decision Tree":
+        feature_importances = clf.feature_importances_
+        # tree_rules = export_text(clf, feature_names=df_x.columns)
+        # tree_rules
+    # elif clf_type == "K-Means":
+    #     DistanceList = []
+    #     for i in range(1,11): #測試將資料分為1~10群
+    #         KM = KNeighborsClassifier(n_neighbors=i)
+    #         KM.fit(x, df_y)
+    #         DistanceList.append(KM.inertia_) #求出每個Cluster內的資料與其中心點之平方距離和，並用List記錄起來
+    #     st.dataframe(DistanceList)
+        # st.markdown("K-Means Center")
+        # centers = clf.cluster_centers_
+        # centers
+
+    imps = permutation_importance(clf, x, df_y)
+    imps_mean = imps.importances_mean
+    # imps_std = imps.importances_std
+    imps_mean
+    # imps_std
+    # df_x.columns
+    # imps_mean
+    df_imps = pd.DataFrame(imps_mean,
+                  index=list(df_x.columns))
+                #   columns=("Imp_Mean", "Imp_Std"))
+    st.subheader("Feature Importance")
+    # imps_mean
+    st.dataframe(df_imps)
+    # print(imps.importances_mean)
+    if clf_type == "Decision Tree":
+            
+        st.subheader("Tree Native Feature Importance")
+        df_tree_imps = pd.Series(feature_importances,
+                  index=list(df_x.columns))
+        st.dataframe(df_tree_imps)
+    
+    # importances = clf_mod.feature_importances_ 
+    # importances
+    # clf.coef_()
+
+    
+    return clf, y_pred
 
 def main():
 
@@ -168,12 +264,12 @@ def main():
     uploaded_raw = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"])
     # uploaded_csv = st.file_uploader('#### 選擇您要上傳的CSV檔')
 
-    ana_type = st.selectbox("Choose Analysis Mehthd", ["Regression Method", "2 LV Classification"])
+    ana_type = st.selectbox("Choose Analysis Mehthd", ["Regression Method", "Classification"])
 
     if ana_type == "Regression Method":
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
 
-    elif ana_type == "2 LV Classification":
+    elif ana_type == "Classification":
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSAL6t_HNdjVhKPyDzt-fVMHqT7ZZnWPrKLIY-QveQxF9vMbR-HbRwcDBM1MEyUjnHkC0JWKbL2TjP0/pub?gid=0&single=true&output=csv"
 
     else:
@@ -234,58 +330,11 @@ def main():
         #     st.error("Please select at least one factor.")
 
 
-        # # factor_2nd order
-        # factor_2od_list = list()
-        # for j in factor:
-        #     factor_2od_list.append("I("+j+" ** 2)")
-
-        # factor_2od = st.multiselect(
-        #     "### Choose Factor 2nd Order(x^2)", factor_2od_list)
-        # if not factor_2od:
-        #     st.error("Please select at 2nd order factor.")
-
-        # # factor_interaction
-        # factor_inter_tmp = list(itertools.combinations(factor, 2))
-        # factor_inter_list =  list()
-        # for i in factor_inter_tmp:
-        #     tmp = "*".join(i)
-        #     factor_inter_list.append(tmp)
-
-        # factor_inter = st.multiselect(
-        #     "### Choose Factor Interaction(x1 * x2)", factor_inter_list)
-        # if not factor_inter:
-        #     st.error("Please select interaction factor.")
-        # st.write(factor)
-        # st.write(factor_inter_list)
-        # factor
-        # factor_final = factor + factor_inter  
-
         # if uploaded_raw is None:
         #     st.header('未上傳檔案，以下為 Demo：')
         #     response = "Y1"
         #     factor = ["R", "r", "t"]
 
-        # factor_final = factor + factor_2od + factor_inter
-
-        # scaler = StandardScaler()
-        # df_ttmp = df_reg[factor]
-        # df_sc = scaler.fit_transform(df_ttmp)
-        # df_sc
-
-        # if st.checkbox('Perform Analysis'):
-        # x_formula = "+".join(factor_final)
-        # formula = response + "~" + x_formula
-        # st.subheader(formula)
-        # result, df_result, fig, sw_p_val = backend(df_reg, formula, fig_size)
-        # st.write(result.summary())
-        
-        # st.markdown("#### Normality Test P Value:%s " % round(sw_p_val,4))
-        # if sw_p_val >= 0.05:
-        #     st.markdown("##### Residual is NOT normal distribution!!")
-        # else:
-        #     st.markdown("##### Residual is normal distribution")    
-
-        # st.plotly_chart(fig, use_container_width=True)
 
 
         # st.markdown("---")
@@ -319,29 +368,14 @@ def main():
 
 
 
-    if ana_type == "2 LV Classification":
+    if ana_type == "Classification":
 
-        clf_type = st.selectbox("### Choose Classification Method", ["Support Vector", "Decision Tree"])
+        clf_type = st.selectbox("### Choose Classification Method", ["Support Vector", "Decision Tree", "K-Means", "Navie Bayes", "Gaussian Process"])
 
         df_x = df_reg[factor]
         df_y = df_reg[response]
         
-        df_roc_data, roc_auc, clf, y_pred = backend_clf(df_x, df_y, clf_type)
-
-        st.markdown("### AUC is: %s" % round(roc_auc,4))
-
-
-        st.subheader("ROC Data")
-        df_roc_data
-        
-        fig_size=640
-
-        fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels=roc_auc, 
-                          range_x=[0,1], range_y=[0,1.1], width=fig_size, height=fig_size)
-        
-        st.subheader("ROC Figure")
-        st.plotly_chart(fig_roc, use_container_width=True)
-
+        clf, y_pred = backend_clf(df_x, df_y, clf_type)
 
         if clf_type == "Decision Tree":
 
@@ -355,42 +389,94 @@ def main():
 
             # st.plotly_chart(g, use_container_width=True)
 
-        if clf_type == "Support Vector" or "Decision Tree":
-            y_pred = pd.Series(y_pred)
-            threshold_cut = 1
 
 
-        y_pred_code = y_pred.map(lambda x: 1 if x >= threshold_cut else 0)
+        df_roc_data, fig_roc = clf_score_sklearn(df_y, y_pred)
 
-        acc = accuracy_score(df_y, y_pred_code)
-        cof_mx = confusion_matrix(df_y, y_pred_code)
-        risk_qty = cof_mx[1, 0]
-        risk =  risk_qty/y_pred_code.size
-  
-        st.markdown("### Accuracy is: %s" % round(acc,4))
-        st.markdown("### Risk is: %s" % round(risk,4))
-        st.markdown("### Confusion Matrix:")
-        st.dataframe(cof_mx)
+        tools.reg_save(df_roc_data, fig_roc, clf)
 
-        st.markdown("---")
+        # st.markdown("---")
 
-        tools.download_file(name_label="Input Result File Name",
-                      button_label='Download regression result as CSV',
-                      file=df_roc_data,
-                      file_type="csv",
-                      gui_key="result_data"
-                      )
+        # tools.download_file(name_label="Input Result File Name",
+        #               button_label='Download regression result as CSV',
+        #               file=df_roc_data,
+        #               file_type="csv",
+        #               gui_key="result_data"
+        #               )
 
-        st.markdown("---")
+        # st.markdown("---")
 
-        tools.download_file(name_label="Input Figure File Name",
-                      button_label='Download figure as HTML',
-                      file=fig_roc,
-                      file_type="html",
-                      gui_key="figure"
-                      )
+        # tools.download_file(name_label="Input Figure File Name",
+        #               button_label='Download figure as HTML',
+        #               file=fig_roc,
+        #               file_type="html",
+        #               gui_key="figure"
+        #               )
         
+        # st.markdown("---")
 
+        # tools.download_file(name_label="Input Model File Name",
+        #               button_label='Download model as PICKLE',
+        #               file=clf,
+        #               file_type="pickle",
+        #               gui_key="model"
+        #               )
+        
+        # st.markdown("---")
+
+
+        predict_performance = st.checkbox("Predict New Data & Check Performance", key="clf")
+
+        if predict_performance == True:
+            st.subheader("**Predict Portion**")
+        
+            uploaded_df = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"], key="predict")
+
+            if uploaded_df is None:
+                
+                url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
+
+            else: 
+                url = None
+            df_test = tools.upload_file(uploaded_df, url)
+
+            y_hat = clf.predict(df_test)
+            st.markdown("Predict Result:")
+            
+            df_test["predict"] = y_hat
+            st.dataframe(df_test)
+            
+            tools.download_file(name_label="Input Predict File Name",
+                            button_label='Download predict result as CSV',
+                            file=df_test,
+                            file_type="csv",
+                            gui_key="predict_data"
+                            )
+
+            st.markdown("---")
+
+            check_pefmce = st.checkbox("Check Model Performance")
+
+            if check_pefmce == True:
+                st.subheader("**Model Perfomance Portion**")
+                st.subheader("**Under Construction**")
+
+                uploaded_y = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"], key="up_y")
+
+                if uploaded_y is None:
+                    
+                    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5skYRbfVPGE6RFYIM6Gg9QurH8u3h_RLfjt-CG0z5YgyxWEUTOdvoKmVkfWCLc2ECAuSEKaHVYPOA/pub?gid=0&single=true&output=csv"
+
+                else: 
+                    url = None
+
+                df_tmp = tools.upload_file(uploaded_y, url)
+                # df_y
+                select_list = list(df_raw.columns)
+                y = st.selectbox("Please select real value", select_list)
+                df_y = df_tmp[y]
+
+                clf_score_sklearn(df_y, y_hat)
 
 
 #%% Web App 頁面

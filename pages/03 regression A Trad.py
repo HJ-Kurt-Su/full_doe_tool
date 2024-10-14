@@ -37,38 +37,40 @@ def ols_reg(formula, df):
 
   return res, df_result, model
 
-def reg_save(df_result, fig, model):
-        st.markdown("---")
+# def reg_save(df_result, fig, model):
+#         st.markdown("---")
 
-        tools.download_file(name_label="Input Result File Name",
-                      button_label='Download statistics result as CSV',
-                      file=df_result,
-                      file_type="csv",
-                      gui_key="result_data"
-                      )
+#         tools.download_file(name_label="Input Result File Name",
+#                       button_label='Download statistics result as CSV',
+#                       file=df_result,
+#                       file_type="csv",
+#                       gui_key="result_data"
+#                       )
 
-        st.markdown("---")
+#         st.markdown("---")
 
-        tools.download_file(name_label="Input Figure File Name",
-                      button_label='Download figure as HTML',
-                      file=fig,
-                      file_type="html",
-                      gui_key="figure"
-                      )
+#         tools.download_file(name_label="Input Figure File Name",
+#                       button_label='Download figure as HTML',
+#                       file=fig,
+#                       file_type="html",
+#                       gui_key="figure"
+#                       )
         
-        st.markdown("---")
+#         st.markdown("---")
 
-        tools.download_file(name_label="Input Model File Name",
-                      button_label='Download model as PICKLE',
-                      file=model,
-                      file_type="pickle",
-                      gui_key="model"
-                      )
+#         tools.download_file(name_label="Input Model File Name",
+#                       button_label='Download model as PICKLE',
+#                       file=model,
+#                       file_type="pickle",
+#                       gui_key="model"
+#                       )
         
-        st.markdown("---")
+#         st.markdown("---")
 
 
-def clf_score(y, y_predict, gui_key):
+def clf_score_log(y, y_predict, gui_key):
+        thresh_key = gui_key["threshold"]
+        thresh_check_key = gui_key["threshold_check"]
         fpr, tpr, threshold = roc_curve(y, y_predict)
         roc_auc = auc(fpr,tpr)
         # df_y
@@ -90,20 +92,25 @@ def clf_score(y, y_predict, gui_key):
         st.plotly_chart(fig_roc, use_container_width=True)
 
         st.subheader("Accuracy Judge")
-        threshold_cut = st.selectbox("Choose Threshold", threshold, key=gui_key)
+        key_in = st.checkbox("Key-in threshold", key=thresh_check_key)
+        if key_in == True:
+            threshold_cut = st.number_input("Key-in thershold value", min_value=0.0001, max_value=0.9999, value=0.5)
+        else:
+            threshold_cut = st.selectbox("Choose Threshold", threshold, key=thresh_key)
 
         y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
         # y_pred
         # y_pred_code
         acc = accuracy_score(y, y_pred_code)
         cof_mx = confusion_matrix(y, y_pred_code)
+        df_cof_mx = df_cof_mx.rename(columns={0: "Predict Pass", 1: "Predict Fail"}, index={0: "Real Pass", 1: "Real Fail"})
         risk_qty = cof_mx[1, 0]
         risk =  risk_qty/y_pred_code.size
   
         st.markdown("### Accuracy is: %s" % round(acc,4))
         st.markdown("### Risk is: %s" % round(risk,4))
         st.markdown("### Confusion Matrix:")
-        st.dataframe(cof_mx)
+        st.dataframe(df_cof_mx)
 
         st.markdown("---")
         return df_roc_data, fig_roc
@@ -431,7 +438,7 @@ def main():
 
         st.plotly_chart(fig, use_container_width=True)
 
-        reg_save(df_result, fig, result)
+        tools.reg_save(df_result, fig, result)
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="reg")
 
@@ -651,9 +658,11 @@ def main():
 
         y_pred = log_model.predict(df_x)
 
-        df_roc_data, fig_roc = clf_score(df_y, y_pred, gui_key= "classify_roc")
+        gui_key_main = {"threshold": "classify_roc_main", "threshold_check": "key_in_main"}
 
-        reg_save(df_roc_data, fig_roc, log_model)
+        df_roc_data, fig_roc = clf_score_log(df_y, y_pred, gui_key= gui_key_main)
+
+        tools.reg_save(df_roc_data, fig_roc, log_model)
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="clf")
@@ -701,13 +710,15 @@ def main():
                 else: 
                     url = None
 
-                df_y = tools.upload_file(uploaded_y, url)
+                df_tmp = tools.upload_file(uploaded_y, url)
                 # df_y
                 select_list = list(df_raw.columns)
                 y = st.selectbox("Please select real value", select_list)
-                df_y = df_y[y]
+                df_y = df_tmp[y]
 
-                clf_score(df_y, y_hat, gui_key= "performance_roc")
+                gui_key_predict = {"threshold": "classify_roc_pred", "threshold_check": "key_in_pred"}
+
+                clf_score_log(df_y, y_hat, gui_key= gui_key_predict)
                 # df_y
 
                 # factor_number = st.number_input("Choose Factor Number", value=2, min_value=2)
@@ -721,7 +732,7 @@ def main():
                 # st.markdown("#### RMSE: %s" % round(model_rmse_score, 3))
                 # st.markdown("               ")
                 # st.markdown("#### MAPE: %s %%" % round(model_mape_score*100, 1))
-                
+            
 
 
 
