@@ -10,10 +10,10 @@ from scipy.stats import shapiro
 from scipy import stats
 
 
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import confusion_matrix
+# from sklearn.metrics import accuracy_score
+# from sklearn.metrics import confusion_matrix
 
-from sklearn.metrics import roc_curve, auc
+# from sklearn.metrics import roc_curve, auc
 
 
 import plotly.express as px
@@ -37,83 +37,56 @@ def ols_reg(formula, df):
 
   return res, df_result, model
 
-# def reg_save(df_result, fig, model):
-#         st.markdown("---")
 
-#         tools.download_file(name_label="Input Result File Name",
-#                       button_label='Download statistics result as CSV',
-#                       file=df_result,
-#                       file_type="csv",
-#                       gui_key="result_data"
-#                       )
 
-#         st.markdown("---")
 
-#         tools.download_file(name_label="Input Figure File Name",
-#                       button_label='Download figure as HTML',
-#                       file=fig,
-#                       file_type="html",
-#                       gui_key="figure"
-#                       )
+# def clf_score_log(y, y_predict, gui_key):
+#         thresh_key = gui_key["threshold"]
+#         thresh_check_key = gui_key["threshold_check"]
+#         fpr, tpr, threshold = roc_curve(y, y_predict)
+#         roc_auc = auc(fpr,tpr)
+#         # df_y
+#         # y_pred
+
+#         st.markdown("### AUC is: %s" % round(roc_auc,4))
+
+#         dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
+#         df_roc_data = pd.DataFrame.from_dict(dict_sum)
+#         st.subheader("ROC Data")
+#         df_roc_data
         
-#         st.markdown("---")
+#         fig_size=640
 
-#         tools.download_file(name_label="Input Model File Name",
-#                       button_label='Download model as PICKLE',
-#                       file=model,
-#                       file_type="pickle",
-#                       gui_key="model"
-#                       )
+#         fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels=roc_auc, 
+#                           range_x=[0,1], range_y=[0,1.1], width=fig_size, height=fig_size)
         
-#         st.markdown("---")
+#         st.subheader("ROC Figure")
+#         st.plotly_chart(fig_roc, use_container_width=True)
 
+#         st.subheader("Accuracy Judge")
+#         key_in = st.checkbox("Key-in threshold", key=thresh_check_key)
+#         if key_in == True:
+#             threshold_cut = st.number_input("Key-in thershold value", min_value=0.0001, max_value=0.9999, value=0.5)
+#         else:
+#             threshold_cut = st.selectbox("Choose Threshold", threshold, key=thresh_key)
 
-def clf_score_log(y, y_predict, gui_key):
-        thresh_key = gui_key["threshold"]
-        thresh_check_key = gui_key["threshold_check"]
-        fpr, tpr, threshold = roc_curve(y, y_predict)
-        roc_auc = auc(fpr,tpr)
-        # df_y
-        # y_pred
-
-        st.markdown("### AUC is: %s" % round(roc_auc,4))
-
-        dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
-        df_roc_data = pd.DataFrame.from_dict(dict_sum)
-        st.subheader("ROC Data")
-        df_roc_data
-        
-        fig_size=640
-
-        fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels=roc_auc, 
-                          range_x=[0,1], range_y=[0,1.1], width=fig_size, height=fig_size)
-        
-        st.subheader("ROC Figure")
-        st.plotly_chart(fig_roc, use_container_width=True)
-
-        st.subheader("Accuracy Judge")
-        key_in = st.checkbox("Key-in threshold", key=thresh_check_key)
-        if key_in == True:
-            threshold_cut = st.number_input("Key-in thershold value", min_value=0.0001, max_value=0.9999, value=0.5)
-        else:
-            threshold_cut = st.selectbox("Choose Threshold", threshold, key=thresh_key)
-
-        y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
-        # y_pred
-        # y_pred_code
-        acc = accuracy_score(y, y_pred_code)
-        cof_mx = confusion_matrix(y, y_pred_code)
-        df_cof_mx = df_cof_mx.rename(columns={0: "Predict Pass", 1: "Predict Fail"}, index={0: "Real Pass", 1: "Real Fail"})
-        risk_qty = cof_mx[1, 0]
-        risk =  risk_qty/y_pred_code.size
+#         y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
+#         # y_pred
+#         # y_pred_code
+#         acc = accuracy_score(y, y_pred_code)
+#         cof_mx = confusion_matrix(y, y_pred_code)
+#         df_cof_mx  = pd.DataFrame(cof_mx)
+#         df_cof_mx = df_cof_mx.rename(columns={0: "Predict Pass", 1: "Predict Fail"}, index={0: "Real Pass", 1: "Real Fail"})
+#         risk_qty = cof_mx[1, 0]
+#         risk =  risk_qty/y_pred_code.size
   
-        st.markdown("### Accuracy is: %s" % round(acc,4))
-        st.markdown("### Risk is: %s" % round(risk,4))
-        st.markdown("### Confusion Matrix:")
-        st.dataframe(df_cof_mx)
+#         st.markdown("### Accuracy is: %s" % round(acc,4))
+#         st.markdown("### Risk is: %s" % round(risk,4))
+#         st.markdown("### Confusion Matrix:")
+#         st.dataframe(df_cof_mx)
 
-        st.markdown("---")
-        return df_roc_data, fig_roc
+#         st.markdown("---")
+#         return df_roc_data, fig_roc
 
 
 
@@ -660,7 +633,7 @@ def main():
 
         gui_key_main = {"threshold": "classify_roc_main", "threshold_check": "key_in_main"}
 
-        df_roc_data, fig_roc = clf_score_log(df_y, y_pred, gui_key= gui_key_main)
+        df_roc_data, fig_roc = tools.clf_score(df_y, y_pred, gui_key= gui_key_main)
 
         tools.reg_save(df_roc_data, fig_roc, log_model)
 
@@ -679,8 +652,9 @@ def main():
             else: 
                 url = None
             df_test = tools.upload_file(uploaded_df, url)
+            df_pred_x = df_test[factor]
 
-            y_hat = log_model.predict(df_test)
+            y_hat = log_model.predict(df_pred_x)
             st.markdown("Predict Result:")
             
             df_test["predict"] = y_hat
@@ -699,7 +673,7 @@ def main():
 
             if check_pefmce == True:
                 st.subheader("**Model Perfomance Portion**")
-                st.subheader("**Under Construction**")
+                # st.subheader("**Under Construction**")
 
                 uploaded_y = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"], key="up_y")
 
@@ -718,21 +692,8 @@ def main():
 
                 gui_key_predict = {"threshold": "classify_roc_pred", "threshold_check": "key_in_pred"}
 
-                clf_score_log(df_y, y_hat, gui_key= gui_key_predict)
-                # df_y
-
-                # factor_number = st.number_input("Choose Factor Number", value=2, min_value=2)
-
-                # model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series = tools.backend_pefmce(df_y, y_hat, factor_number)
-                    
-                # st.markdown("#### $R^2$: %s" % round(model_r2_score, 3))
-                # st.markdown("               ")
-                # st.markdown("#### Adjusted $R^2$: %s" % round(adj_r_squared, 3))
-                # st.markdown("               ")
-                # st.markdown("#### RMSE: %s" % round(model_rmse_score, 3))
-                # st.markdown("               ")
-                # st.markdown("#### MAPE: %s %%" % round(model_mape_score*100, 1))
-            
+                # clf_score_log(df_y, y_hat, gui_key= gui_key_predict)
+                tools.clf_score(df_y, y_pred, gui_key=gui_key_predict)
 
 
 

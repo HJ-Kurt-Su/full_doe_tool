@@ -14,7 +14,14 @@ import io
 import pickle
 
 
-from sklearn.metrics import r2_score, mean_absolute_percentage_error, max_error, mean_squared_error
+from sklearn.metrics import r2_score, mean_absolute_percentage_error, max_error, mean_squared_error, root_mean_squared_error
+
+
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_curve, auc
+
+import plotly.express as px
 
 
 
@@ -109,26 +116,130 @@ def reg_save(df_result, fig, model):
                       )
         
         st.markdown("---")
+
+
+
 ## Model performance tool
 
 
+
 def backend_pefmce(y, prediction, p):
-  
-  # Target: calculate model metrics (r2, mape, rmse)
-  # Input: actual Y, predict Y, factor number
-  # Use sklearn metrice module to calculate metrics
+    # Target: calculate model metrics (r2, mape, rmse)
+    # Input: actual Y, predict Y, factor number
+    # Use sklearn metrice module to calculate metrics
 
+    # Calculate R-squared score using the actual and predicted values
     model_r2_score = r2_score(y, prediction)
-    n = len(y)
+    n = len(y)  # Number of observations
 
+    # Calculate adjusted R-squared score
     adj_r_squared = 1 - (1 - model_r2_score) * (n-1)/(n-p-1)
 
+    # Calculate Mean Absolute Percentage Error (MAPE)
     model_mape_score = mean_absolute_percentage_error(y, prediction)
 
+    # Calculate individual MAPE values, adjusted to avoid division by zero
     epsilon = np.finfo(np.float64).eps
     mape = np.abs(prediction - y) / np.maximum(np.abs(y), epsilon)
-    mape_series = pd.Series(mape)
+    mape_series = pd.Series(mape)  # Convert MAPE values to a pandas Series
 
-    model_rmse_score = mean_squared_error(y, prediction, squared=False)
+    # Calculate Root Mean Squared Error (RMSE)
+    model_rmse_score = root_mean_squared_error(y, prediction)
 
+    # Return all calculated metrics
     return model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series
+
+
+
+
+def clf_score(y, y_predict, gui_key=None):
+    """
+    Calculate model metrics (accuracy, risk, ROC figure) and provide visualizations.
+    Input:
+      - y: actual Y
+      - y_predict: predict Y
+      - gui_key: GUI-related keys for threshold input (optional)
+    Uses:
+      - sklearn metrics module to calculate metrics
+      - Plotly for visualization
+    """
+
+    # Compute the False Positive Rate (FPR), True Positive Rate (TPR), and thresholds using ROC curve
+    fpr, tpr, threshold = roc_curve(y, y_predict)
+    roc_auc = auc(fpr, tpr)  # Compute Area Under the Curve (AUC)
+
+    # Display the AUC value
+    st.markdown("### AUC is: %s" % round(roc_auc, 4))
+
+    # Create a dictionary of FPR, TPR, and thresholds
+    dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
+    # Convert the dictionary to a pandas DataFrame
+    df_roc_data = pd.DataFrame.from_dict(dict_sum)
+    st.subheader("ROC Data")
+    df_roc_data  # Display the ROC Data DataFrame
+
+    fig_size = 640  # Set the figure size
+
+    # Create a line plot for the ROC curve using Plotly
+    fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels={'label': 'roc_auc'}, 
+                        range_x=[0, 1], range_y=[0, 1.1], width=fig_size, height=fig_size)
+    
+    st.subheader("ROC Figure")
+    st.plotly_chart(fig_roc, use_container_width=True)  # Display the ROC curve plot
+
+    if gui_key:  # If GUI keys are provided, handle threshold selection
+        st.subheader("Accuracy Judge")
+        key_in = st.checkbox("Key-in threshold", key=gui_key["threshold_check"])
+        if key_in:
+            threshold_cut = st.number_input("Key-in threshold value", min_value=0.0001, max_value=0.9999, value=0.5)
+        else:
+            threshold_cut = st.selectbox("Choose Threshold", threshold, key=gui_key["threshold"])
+
+        y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
+        # Calculate accuracy and confusion matrix with the threshold code
+        acc = accuracy_score(y, y_pred_code)
+        cof_mx = confusion_matrix(y, y_pred_code)
+    else:
+        # Calculate accuracy and confusion matrix
+        acc = accuracy_score(y, y_predict)
+        cof_mx = confusion_matrix(y, y_predict)
+
+    df_cof_mx = pd.DataFrame(cof_mx)  # Convert confusion matrix to DataFrame
+    # Rename columns and index for better readability
+    df_cof_mx = df_cof_mx.rename(columns={0: "Predict Pass", 1: "Predict Fail"}, index={0: "Real Pass", 1: "Real Fail"})
+    
+    # Calculate risk value
+    risk_qty = cof_mx[1, 0]
+    risk = risk_qty / y_predict.size
+
+    # Display accuracy, risk, and confusion matrix
+    st.markdown("### Accuracy is: %s" % round(acc, 4))
+    st.markdown("### Risk is: %s" % round(risk, 4))
+    st.markdown("### Confusion Matrix:")
+    st.dataframe(df_cof_mx)
+
+    st.markdown("---")  # Add a horizontal rule
+    return df_roc_data, fig_roc  # Return the ROC Data DataFrame and ROC figure plot
+
+
+
+# def backend_pefmce(y, prediction, p):
+  
+#   # Target: calculate model metrics (r2, mape, rmse)
+#   # Input: actual Y, predict Y, factor number
+#   # Use sklearn metrice module to calculate metrics
+
+#     model_r2_score = r2_score(y, prediction)
+#     n = len(y)
+
+#     adj_r_squared = 1 - (1 - model_r2_score) * (n-1)/(n-p-1)
+
+#     model_mape_score = mean_absolute_percentage_error(y, prediction)
+
+#     epsilon = np.finfo(np.float64).eps
+#     mape = np.abs(prediction - y) / np.maximum(np.abs(y), epsilon)
+#     mape_series = pd.Series(mape)
+
+#     model_rmse_score = mean_squared_error(y, prediction, squared=False)
+
+#     return model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series

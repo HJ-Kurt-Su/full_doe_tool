@@ -1,22 +1,12 @@
 import streamlit as st
 import pandas as pd
-# import itertools
 
-# import datetime
-import numpy as np
-# import io
-# import statsmodels.formula.api as smf
-# import statsmodels.api as sm 
-# from scipy.stats import shapiro
-# from scipy import stats
-# from statsmodels.graphics.gofplots import qqplot
+# import numpy as np
 
+# from sklearn.metrics import accuracy_score
+# from sklearn.metrics import confusion_matrix
 
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import confusion_matrix
-# from sklearn.metrics import classification_report
-# from sklearn.metrics import roc_auc_score
-from sklearn.metrics import roc_curve, auc
+# from sklearn.metrics import roc_curve, auc
 from sklearn.inspection import permutation_importance
 
 
@@ -24,9 +14,9 @@ from sklearn.inspection import permutation_importance
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier, export_text
-import graphviz
+# import graphviz
 from sklearn.tree import export_graphviz
-# from sklearn.cluster import KMeans
+
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 
@@ -35,8 +25,8 @@ from sklearn.gaussian_process.kernels import RBF
 
 
 import plotly.express as px
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
+# from plotly.subplots import make_subplots
+# import plotly.graph_objects as go
 
 # import pickle
 import tools
@@ -50,53 +40,59 @@ color_sequence = px.colors.qualitative.Pastel
 template = "simple_white"
 
 
-def clf_score_sklearn(y, y_predict):
-        # thresh_key = gui_key["threshold"]
-        # thresh_check_key = gui_key["threshold_check"]
-        fpr, tpr, threshold = roc_curve(y, y_predict)
-        roc_auc = auc(fpr,tpr)
-        # df_y
-        # y_pred
 
-        st.markdown("### AUC is: %s" % round(roc_auc,4))
+# def clf_score_sklearn(y, y_predict):
+#     # Target: calculate model metrics (accuracy, risk, roc figure)
+#     # Input: actual Y, predict Y
+#     # Use sklearn metrice module to calculate metrics
 
-        dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
-        df_roc_data = pd.DataFrame.from_dict(dict_sum)
-        st.subheader("ROC Data")
-        df_roc_data
-        
-        fig_size=640
 
-        fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels=roc_auc, 
-                          range_x=[0,1], range_y=[0,1.1], width=fig_size, height=fig_size)
-        
-        st.subheader("ROC Figure")
-        st.plotly_chart(fig_roc, use_container_width=True)
+#     # thresh_key = gui_key["threshold"]
+#     # thresh_check_key = gui_key["threshold_check"]
 
-        # st.subheader("Accuracy Judge")
-        # key_in = st.checkbox("Key-in threshold", key=thresh_check_key)
-        # if key_in == True:
-        #     threshold_cut = st.number_input("Key-in thershold value", min_value=0.0001, max_value=0.9999, value=0.5)
-        # else:
-        #     threshold_cut = st.selectbox("Choose Threshold", threshold, key=thresh_key)
+#     # Compute the False Positive Rate (FPR), True Positive Rate (TPR), and thresholds using ROC curve
+#     fpr, tpr, threshold = roc_curve(y, y_predict)
+#     roc_auc = auc(fpr, tpr)  # Compute Area Under the Curve (AUC)
 
-        # y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
-        # y_pred
-        # y_pred_code
-        acc = accuracy_score(y, y_predict)
-        cof_mx = confusion_matrix(y, y_predict)
-        df_cof_mx  = pd.DataFrame(cof_mx)
-        df_cof_mx = df_cof_mx.rename(columns={0: "Predict Pass", 1: "Predict Fail"}, index={0: "Real Pass", 1: "Real Fail"})
-        risk_qty = cof_mx[1, 0]
-        risk =  risk_qty/y_predict.size
-  
-        st.markdown("### Accuracy is: %s" % round(acc,4))
-        st.markdown("### Risk is: %s" % round(risk,4))
-        st.markdown("### Confusion Matrix:")
-        st.dataframe(df_cof_mx)
+#     # Display the AUC value
+#     st.markdown("### AUC is: %s" % round(roc_auc,4))
 
-        st.markdown("---")
-        return df_roc_data, fig_roc
+#     # Create a dictionary of FPR, TPR, and thresholds
+#     dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
+#     # Convert the dictionary to a pandas DataFrame
+#     df_roc_data = pd.DataFrame.from_dict(dict_sum)
+#     st.subheader("ROC Data")
+#     df_roc_data  # Display the ROC Data DataFrame
+    
+#     fig_size = 640  # Set the figure size
+
+#     # Create a line plot for the ROC curve using Plotly
+#     fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels={'label': 'roc_auc'}, 
+#                         range_x=[0, 1], range_y=[0, 1.1], width=fig_size, height=fig_size)
+    
+#     st.subheader("ROC Figure")
+#     st.plotly_chart(fig_roc, use_container_width=True)  # Display the ROC curve plot
+
+#     # Calculate accuracy and confusion matrix
+#     acc = accuracy_score(y, y_predict)
+#     cof_mx = confusion_matrix(y, y_predict)
+#     df_cof_mx = pd.DataFrame(cof_mx)  # Convert confusion matrix to DataFrame
+#     # Rename columns and index for better readability
+#     df_cof_mx = df_cof_mx.rename(columns={0: "Predict Pass", 1: "Predict Fail"}, index={0: "Real Pass", 1: "Real Fail"})
+    
+#     # Calculate risk value
+#     risk_qty = cof_mx[1, 0]
+#     risk = risk_qty / y_predict.size
+
+#     # Display accuracy, risk, and confusion matrix
+#     st.markdown("### Accuracy is: %s" % round(acc,4))
+#     st.markdown("### Risk is: %s" % round(risk,4))
+#     st.markdown("### Confusion Matrix:")
+#     st.dataframe(df_cof_mx)
+
+#     st.markdown("---")  # Add a horizontal rule
+#     return df_roc_data, fig_roc  # Return the ROC Data DataFrame and ROC figure plot
+
 
 
   
@@ -226,7 +222,7 @@ def backend_clf(df_x, df_y, clf_type):
     imps = permutation_importance(clf, x, df_y)
     imps_mean = imps.importances_mean
     # imps_std = imps.importances_std
-    imps_mean
+    # imps_mean
     # imps_std
     # df_x.columns
     # imps_mean
@@ -391,38 +387,10 @@ def main():
 
 
 
-        df_roc_data, fig_roc = clf_score_sklearn(df_y, y_pred)
+        # df_roc_data, fig_roc = clf_score_sklearn(df_y, y_pred)
+        df_roc_data, fig_roc = tools.clf_score(df_y, y_pred)
 
         tools.reg_save(df_roc_data, fig_roc, clf)
-
-        # st.markdown("---")
-
-        # tools.download_file(name_label="Input Result File Name",
-        #               button_label='Download regression result as CSV',
-        #               file=df_roc_data,
-        #               file_type="csv",
-        #               gui_key="result_data"
-        #               )
-
-        # st.markdown("---")
-
-        # tools.download_file(name_label="Input Figure File Name",
-        #               button_label='Download figure as HTML',
-        #               file=fig_roc,
-        #               file_type="html",
-        #               gui_key="figure"
-        #               )
-        
-        # st.markdown("---")
-
-        # tools.download_file(name_label="Input Model File Name",
-        #               button_label='Download model as PICKLE',
-        #               file=clf,
-        #               file_type="pickle",
-        #               gui_key="model"
-        #               )
-        
-        # st.markdown("---")
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="clf")
@@ -439,8 +407,9 @@ def main():
             else: 
                 url = None
             df_test = tools.upload_file(uploaded_df, url)
+            df_pred_x = df_test[factor]
 
-            y_hat = clf.predict(df_test)
+            y_hat = clf.predict(df_pred_x)
             st.markdown("Predict Result:")
             
             df_test["predict"] = y_hat
@@ -476,7 +445,7 @@ def main():
                 y = st.selectbox("Please select real value", select_list)
                 df_y = df_tmp[y]
 
-                clf_score_sklearn(df_y, y_hat)
+                tools.clf_score(df_y, y_hat)
 
 
 #%% Web App 頁面
