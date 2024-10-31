@@ -20,6 +20,7 @@ from sklearn.metrics import r2_score, mean_absolute_percentage_error, max_error,
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import PrecisionRecallDisplay, precision_recall_curve, average_precision_score
 
 import plotly.express as px
 
@@ -173,10 +174,11 @@ def clf_score(y, y_predict, gui_key=None):
 
     # Create a dictionary of FPR, TPR, and thresholds
     dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
+
     # Convert the dictionary to a pandas DataFrame
     df_roc_data = pd.DataFrame.from_dict(dict_sum)
     st.subheader("ROC Data")
-    df_roc_data  # Display the ROC Data DataFrame
+    st.dataframe(df_roc_data)  # Display the ROC Data DataFrame
 
     fig_size = 640  # Set the figure size
 
@@ -219,6 +221,32 @@ def clf_score(y, y_predict, gui_key=None):
     st.dataframe(df_cof_mx)
 
     st.markdown("---")  # Add a horizontal rule
+
+    preci_recall = st.checkbox("Use Precision & Recall Method")
+
+    if preci_recall == True:
+
+        precision, recall, thresholds = precision_recall_curve(y, y_predict)
+        ap = average_precision_score(y, y_predict)
+        pr_auc = auc(recall, precision) 
+        st.markdown("### Average Precision is: %s" % round(ap, 4))
+        st.markdown("### Precision-Recall AUC is: %s" % round(pr_auc, 4))
+
+        # dict_pr = {"Precision": precision, "Recall": recall, "Threshold": thresholds}
+        dict_pr = {"Precision": precision, "Recall": recall}
+
+        # Convert the dictionary to a pandas DataFrame
+        df_pr_data = pd.DataFrame.from_dict(dict_pr)
+        st.dataframe(df_pr_data)
+        # st.dataframe(recall)
+        st.dataframe(thresholds)
+        fig_pr = px.line(df_pr_data, x="Recall", y="Precision", markers=False, labels={'label': 'Precision-Recall'}, 
+                        range_x=[0, 1], range_y=[0, 1.1], width=fig_size, height=fig_size)
+    
+        st.subheader("Precision Recall Figure")
+        st.plotly_chart(fig_pr, use_container_width=True)  # Display the Precision-Recall curve plot
+
+
     return df_roc_data, fig_roc  # Return the ROC Data DataFrame and ROC figure plot
 
 
