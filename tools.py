@@ -17,7 +17,7 @@ import pickle
 from sklearn.metrics import r2_score, mean_absolute_percentage_error, max_error, mean_squared_error, root_mean_squared_error
 
 
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import PrecisionRecallDisplay, precision_recall_curve, average_precision_score
@@ -229,8 +229,10 @@ def clf_score(y, y_predict, gui_key=None):
         precision, recall, thresholds = precision_recall_curve(y, y_predict)
         ap = average_precision_score(y, y_predict)
         pr_auc = auc(recall, precision) 
+        f1_s = f1_score(y, y_predict)
         st.markdown("### Average Precision is: %s" % round(ap, 4))
         st.markdown("### Precision-Recall AUC is: %s" % round(pr_auc, 4))
+        st.markdown("### F1 Socre is: %s" % round(f1_s, 4))
 
         # dict_pr = {"Precision": precision, "Recall": recall, "Threshold": thresholds}
         dict_pr = {"Precision": precision, "Recall": recall}

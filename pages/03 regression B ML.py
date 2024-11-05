@@ -12,15 +12,15 @@ from sklearn.inspection import permutation_importance
 
 # from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.svm import SVC
-from sklearn.tree import DecisionTreeClassifier, export_text
+from sklearn.svm import SVC, SVR
+from sklearn.tree import DecisionTreeClassifier, export_text, DecisionTreeRegressor
 # import graphviz
 from sklearn.tree import export_graphviz
 
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import GaussianNB
 
-from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
 
 
@@ -96,90 +96,82 @@ template = "simple_white"
 
 
   
-def backend(df_reg, formula, fig_size):
+def backend(df_x, df_y, reg_type):
     # df_reg = df_raw.copy()
     st.markdown("Under Construction")
 
-    # result, df_result, model = ols_reg(formula, df_reg)
+    # nom_choice = st.checkbox("Normalize Factor", value=False)
+    # if nom_choice == True:
+    #     scaler = StandardScaler()
+    #     x = scaler.fit_transform(df_x)
+    #     st.subheader("Normalize X")
+    #     st.dataframe(x)
+    # else:
+    #     x = df_x
 
-    # alpha = 0.05
-    # # f_num = len(result.tvalues)-1
-    # # dof = round(f_num/3, 0)
-    # dof = result.df_resid
-    # t_val = stats.t.ppf(1-alpha/2, dof)
+    if reg_type == "Support Vector":
+        svr_ker = st.selectbox("Choose Kernal", ["linear", "rbf", "poly", "sigmoid"])
+        reg = SVR(gamma='auto', kernel=svr_ker)
+    elif reg_type == "Decision Tree":
+        max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
+        reg = DecisionTreeRegressor(max_depth=max_tree_layer)
+    elif reg_type == "K-Means":
+        st.subheader("Under Construction")
+        cluster_num = st.number_input("Setup Cluster Q'ty", min_value=1, max_value=10, value=2)
+        reg = KNeighborsClassifier(n_neighbors=cluster_num)
+    elif reg_type == "Navie Bayes":
+        reg = GaussianNB()
+    elif reg_type == "Gaussian Process":
+        kernel = 1.0 * RBF(1.0)
+        reg = GaussianProcessRegressor(kernel=kernel)
+    # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
+    reg.fit(df_x, df_y)
+    y_pred = reg.predict(df_x)
 
-    # df_pareto = result.tvalues[1:].abs()
-    # df_pareto = df_pareto.sort_values(ascending=True)
-    # df_pareto = pd.DataFrame(df_pareto).reset_index(level=0)
-    # df_pareto.columns = ["factor", "t-value"]
+    if reg_type == "Decision Tree":
+        feature_importances = reg.feature_importances_
 
+    imps = permutation_importance(reg, df_x, df_y)
+    imps_mean = imps.importances_mean
+    # imps_std = imps.importances_std
+    # imps_mean
+    # imps_std
+    # df_x.columns
+    # imps_mean
+    df_imps = pd.DataFrame(imps_mean,
+                  index=list(df_x.columns))
+                #   columns=("Imp_Mean", "Imp_Std"))
+    st.subheader("Feature Importance")
+    # imps_mean
+    st.dataframe(df_imps)
 
-    # SW, sw_p_val = shapiro(df_result["resid"])
-    # df_qq = acquire_qq_data(df_result["resid"])
+    if reg_type == "Decision Tree":
+            
+        st.subheader("Tree Native Feature Importance")
+        df_tree_imps = pd.Series(feature_importances,
+                  index=list(df_x.columns))
+        st.dataframe(df_tree_imps)
+    
+    return reg, y_pred
 
-
-
-    # fig = make_subplots(
-    #     rows=2, cols=2,
-    #     subplot_titles=("yhat-residual-plot (random better)", "residual-histogram-plot (normal distribution better)", 
-    #                     "redidual-sequence-plot (random better)", "pareto-plot (red line as criteria)"))
-
-    # fig.add_trace(go.Scatter(x=df_result["yhat"], y=df_result["resid"], mode="markers", 
-    #                         marker=dict(color='rgba(19, 166, 255, 0.6)')),
-    #             row=1, col=1)
-
-    # fig.add_trace(go.Histogram(x=df_result["resid"],
-    #                         marker=dict(color='rgba(19, 166, 255, 0.6)')),
-    #             row=1, col=2)
-
-    # fig.add_trace(go.Scatter(y=df_result["resid"], mode="lines+markers",
-    #                         marker=dict(color='rgba(19, 166, 255, 0.6)')),
-    #             row=2, col=1)
-
-    # fig.add_trace(go.Bar(x=df_pareto["t-value"], y=df_pareto["factor"], orientation='h', width=0.8,
-    #                     marker=dict(color='rgba(19, 166, 255, 0.6)')
-    #                     ),
-    #             row=2, col=2)
-    # fig.add_vline(x=t_val, line_width=2, line_dash='dash', line_color='red',
-    #             row=2, col=2)
-
-    # # fig.add_trace(go.Scatter(x=df_qq["x_line"], y=df_qq["y_line"], mode="lines"),
-    # #               row=2, col=2)
-
-    # fig.update_xaxes(title_text="Y-hat", row=1, col=1)
-    # fig.update_yaxes(title_text="Residual", row=1, col=1)
-
-    # fig.update_xaxes(title_text="Residual", row=1, col=2)
-    # fig.update_yaxes(title_text="Count", row=1, col=2)
-
-    # fig.update_xaxes(title_text="Sequence", row=2, col=1)
-    # fig.update_yaxes(title_text="Residual", row=2, col=1)
-
-    # fig.update_xaxes(title_text="Factor Importance", row=2, col=2)
-    # fig.update_yaxes(title_text="Factor", row=2, col=2)
-
-    # fig.update_layout(height=fig_size[1], width=fig_size[0],
-    #                 title_text="Model Check Figure",
-    #                 showlegend=False)
- 
-    # return result, df_result, fig, sw_p_val
 
 def backend_clf(df_x, df_y, clf_type):
 
 
     # if clf_type == "Support Vector" or "Decision Tree" or "K-Means" or "Navie Bayes":
         # clf = make_pipeline(StandardScaler(), SVC(gamma='auto'))
-    nom_choice = st.checkbox("Normalize Factor", value=False)
-    if nom_choice == True:
-        scaler = StandardScaler()
-        x = scaler.fit_transform(df_x)
-        st.subheader("Normalize X")
-        st.dataframe(x)
-    else:
-        x = df_x
+    # nom_choice = st.checkbox("Normalize Factor", value=False)
+    # if nom_choice == True:
+    #     scaler = StandardScaler()
+    #     x = scaler.fit_transform(df_x)
+    #     st.subheader("Normalize X")
+    #     st.dataframe(x)
+    # else:
+    #     x = df_x
     
     if clf_type == "Support Vector":
-        clf = SVC(gamma='auto', kernel="linear")
+        svc_ker = st.selectbox("Choose Kernal", ["linear", "rbf", "poly", "sigmoid"])
+        clf = SVC(gamma='auto', kernel=svc_ker)
     elif clf_type == "Decision Tree":
         max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
         clf = DecisionTreeClassifier(max_depth=max_tree_layer)
@@ -193,19 +185,20 @@ def backend_clf(df_x, df_y, clf_type):
         kernel = 1.0 * RBF(1.0)
         clf = GaussianProcessClassifier(kernel=kernel)
     # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
-    clf.fit(x, df_y)
-    y_pred = clf.predict(x)
+    clf.fit(df_x, df_y)
+    y_pred = clf.predict(df_x)
     # proba = clf.predict_proba(x)
     # proba
     # clf.fit(df_x, df_y)
     # y_pred = clf.predict(df_x)
     # feature_importances = clf.feature_importances_
-    if clf_type == "Support Vector":
+    if clf_type == "Support Vector" and svc_ker == "linear":
         st.subheader("SVC Model Coefficence")
         coef_svc = clf.coef_
         coef_svc
     if clf_type == "Decision Tree":
         feature_importances = clf.feature_importances_
+        
         # tree_rules = export_text(clf, feature_names=df_x.columns)
         # tree_rules
     # elif clf_type == "K-Means":
@@ -219,7 +212,7 @@ def backend_clf(df_x, df_y, clf_type):
         # centers = clf.cluster_centers_
         # centers
 
-    imps = permutation_importance(clf, x, df_y)
+    imps = permutation_importance(clf, df_x, df_y)
     imps_mean = imps.importances_mean
     # imps_std = imps.importances_std
     # imps_mean
@@ -311,56 +304,36 @@ def main():
         response = "Y2"
         factor = ["R", "r", "t"]
 
+    df_x = df_reg[factor]
+    df_y = df_reg[response]
+
+    nom_choice = st.checkbox("Normalize Factor", value=False, key="normalize")
+    if nom_choice == True:
+        scaler = StandardScaler()
+        x = scaler.fit_transform(df_x)
+        st.subheader("Normalize X")
+        st.dataframe(x)
+    else:
+        x = df_x
+
     if ana_type == "Regression Method":
 
         st.header("Under Construction")
-
-        # # select_list
-        # response = st.selectbox("### Choose Response(y)", select_list)
-        # # response
-        # factor_list = select_list.copy()
-        # factor_list.remove(response)
-        # factor = st.multiselect(
-        #     "### Choose Factor(x)", factor_list)
-        # if not factor:
-        #     st.error("Please select at least one factor.")
+        reg_type = st.selectbox("### Choose Regression Method", ["Support Vector", "Decision Tree", "K-Means", "Navie Bayes", "Gaussian Process"])
 
 
-        # if uploaded_raw is None:
-        #     st.header('未上傳檔案，以下為 Demo：')
-        #     response = "Y1"
-        #     factor = ["R", "r", "t"]
-
-
-
-        # st.markdown("---")
-
-        # tools.download_file(name_label="Input Result File Name",
-        #               button_label='Download statistics result as CSV',
-        #               file=df_result,
-        #               file_type="csv",
-        #               gui_key="result_data"
-        #               )
-
-        # st.markdown("---")
-
-        # tools.download_file(name_label="Input Figure File Name",
-        #               button_label='Download figure as HTML',
-        #               file=fig,
-        #               file_type="html",
-        #               gui_key="figure" 
-        #               )
         
-        # st.markdown("---")
+        reg, y_pred = backend(x, df_y, reg_type)
 
-        # tools.download_file(name_label="Input Model File Name",
-        #               button_label='Download model as PICKLE',
-        #               file=result,
-        #               file_type="pickle",
-        #               gui_key="model"
-        #               )
-        
-        # st.markdown("---")
+        if reg_type == "Decision Tree":
+
+            g = export_graphviz(reg,
+                                feature_names=df_x.columns,
+                                class_names=["0","1"],
+                                filled=True)
+
+            st.subheader("Decision Tree")
+            st.graphviz_chart(g)
 
 
 
@@ -368,10 +341,11 @@ def main():
 
         clf_type = st.selectbox("### Choose Classification Method", ["Support Vector", "Decision Tree", "K-Means", "Navie Bayes", "Gaussian Process"])
 
-        df_x = df_reg[factor]
-        df_y = df_reg[response]
+        # df_x = df_reg[factor]
+        # df_y = df_reg[response]
         
-        clf, y_pred = backend_clf(df_x, df_y, clf_type)
+        clf, y_pred = backend_clf(x, df_y, clf_type)
+        # y_pred
 
         if clf_type == "Decision Tree":
 
@@ -428,7 +402,7 @@ def main():
 
             if check_pefmce == True:
                 st.subheader("**Model Perfomance Portion**")
-                st.subheader("**Under Construction**")
+                # st.subheader("**Under Construction**")
 
                 uploaded_y = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"], key="up_y")
 
