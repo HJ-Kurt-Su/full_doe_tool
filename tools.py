@@ -13,6 +13,7 @@ import numpy as np
 import io
 import pickle
 
+from sklearn.preprocessing import StandardScaler
 
 from sklearn.metrics import r2_score, mean_absolute_percentage_error, max_error, mean_squared_error, root_mean_squared_error
 
@@ -23,6 +24,8 @@ from sklearn.metrics import roc_curve, auc
 from sklearn.metrics import PrecisionRecallDisplay, precision_recall_curve, average_precision_score
 
 import plotly.express as px
+from plotly.subplots import make_subplots
+import plotly.graph_objects as go
 
 
 
@@ -118,7 +121,17 @@ def reg_save(df_result, fig, model):
         
         st.markdown("---")
 
+def nom_checkbox(df_x):
+    nom_choice = st.checkbox("Normalize Factor", value=False)
+    if nom_choice == True:
+        scaler = StandardScaler()
+        x = scaler.fit_transform(df_x)
+        st.subheader("Normalize X")
+        st.dataframe(x)
+    else:
+        x = df_x
 
+    return x
 
 ## Model performance tool
 
@@ -253,6 +266,112 @@ def clf_score(y, y_predict, gui_key=None):
 
 
 
+def model_check_figure(df_result, df_pareto=None, t_val=None):
+    """
+    Creates a model check figure with four subplots:
+    1. yhat-residual-plot
+    2. residual-histogram-plot
+    3. residual-sequence-plot
+    4. pareto-plot
+    
+    Parameters:
+    df_result (DataFrame): DataFrame containing 'yhat' and 'resid' columns.
+    df_pareto (DataFrame): DataFrame containing 't-value' and 'factor' columns.
+    t_val (float): The t-value for the Pareto plot's vertical line.
+    fig_size (tuple): A tuple containing the width and height of the figure.
+    
+    Returns:
+    fig (Figure): A Plotly Figure object.
+    """
+    color_def = 'rgba(19, 166, 255, 0.6)'
+    fig_size = [1280, 960]
+
+    # Create subplots layout
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=(
+            "yhat-residual-plot (random better)", 
+            "residual-histogram-plot (normal distribution better)", 
+            "redidual-sequence-plot (random better)", 
+            "pareto-plot (red line as criteria)"
+        )
+    )
+
+    # Add yhat-residual scatter plot
+    fig.add_trace(
+        go.Scatter(
+            x=df_result["yhat"], 
+            y=df_result["resid"], 
+            mode="markers", 
+            marker=dict(color=color_def)
+        ),
+        row=1, col=1
+    )
+
+    # Add residual histogram plot
+    fig.add_trace(
+        go.Histogram(
+            x=df_result["resid"],
+            marker=dict(color=color_def)
+        ),
+        row=1, col=2
+    )
+
+    # Add residual sequence plot
+    fig.add_trace(
+        go.Scatter(
+            y=df_result["resid"], 
+            mode="lines+markers",
+            marker=dict(color=color_def)
+        ),
+        row=2, col=1
+    )
+
+    if df_pareto:
+    # Add Pareto plot
+        fig.add_trace(
+            go.Bar(
+                x=df_pareto["t-value"], 
+                y=df_pareto["factor"], 
+                orientation='h', 
+                width=0.8,
+                marker=dict(color=color_def)
+            ),
+            row=2, col=2
+        )
+        
+        # Add vertical line to Pareto plot
+        fig.add_vline(
+            x=t_val, 
+            line_width=2, 
+            line_dash='dash', 
+            line_color='red',
+            row=2, col=2
+        )
+
+    # Update x and y axis labels
+    fig.update_xaxes(title_text="Y-hat", row=1, col=1)
+    fig.update_yaxes(title_text="Residual", row=1, col=1)
+
+    fig.update_xaxes(title_text="Residual", row=1, col=2)
+    fig.update_yaxes(title_text="Count", row=1, col=2)
+
+    fig.update_xaxes(title_text="Sequence", row=2, col=1)
+    fig.update_yaxes(title_text="Residual", row=2, col=1)
+
+    if df_pareto:
+        fig.update_xaxes(title_text="Factor Importance", row=2, col=2)
+        fig.update_yaxes(title_text="Factor", row=2, col=2)
+
+    # Update overall layout
+    fig.update_layout(
+        height=fig_size[1], 
+        width=fig_size[0],
+        title_text="Model Check Figure",
+        showlegend=False
+    )
+    
+    return fig
 # def backend_pefmce(y, prediction, p):
   
 #   # Target: calculate model metrics (r2, mape, rmse)

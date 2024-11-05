@@ -11,14 +11,14 @@ from sklearn.inspection import permutation_importance
 
 
 # from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, export_text, DecisionTreeRegressor
 # import graphviz
 from sklearn.tree import export_graphviz
 
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
+from sklearn.naive_bayes import GaussianNB, BernoulliNB, MultinomialNB
 
 from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
@@ -40,65 +40,10 @@ color_sequence = px.colors.qualitative.Pastel
 template = "simple_white"
 
 
-
-# def clf_score_sklearn(y, y_predict):
-#     # Target: calculate model metrics (accuracy, risk, roc figure)
-#     # Input: actual Y, predict Y
-#     # Use sklearn metrice module to calculate metrics
-
-
-#     # thresh_key = gui_key["threshold"]
-#     # thresh_check_key = gui_key["threshold_check"]
-
-#     # Compute the False Positive Rate (FPR), True Positive Rate (TPR), and thresholds using ROC curve
-#     fpr, tpr, threshold = roc_curve(y, y_predict)
-#     roc_auc = auc(fpr, tpr)  # Compute Area Under the Curve (AUC)
-
-#     # Display the AUC value
-#     st.markdown("### AUC is: %s" % round(roc_auc,4))
-
-#     # Create a dictionary of FPR, TPR, and thresholds
-#     dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
-#     # Convert the dictionary to a pandas DataFrame
-#     df_roc_data = pd.DataFrame.from_dict(dict_sum)
-#     st.subheader("ROC Data")
-#     df_roc_data  # Display the ROC Data DataFrame
-    
-#     fig_size = 640  # Set the figure size
-
-#     # Create a line plot for the ROC curve using Plotly
-#     fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels={'label': 'roc_auc'}, 
-#                         range_x=[0, 1], range_y=[0, 1.1], width=fig_size, height=fig_size)
-    
-#     st.subheader("ROC Figure")
-#     st.plotly_chart(fig_roc, use_container_width=True)  # Display the ROC curve plot
-
-#     # Calculate accuracy and confusion matrix
-#     acc = accuracy_score(y, y_predict)
-#     cof_mx = confusion_matrix(y, y_predict)
-#     df_cof_mx = pd.DataFrame(cof_mx)  # Convert confusion matrix to DataFrame
-#     # Rename columns and index for better readability
-#     df_cof_mx = df_cof_mx.rename(columns={0: "Predict Pass", 1: "Predict Fail"}, index={0: "Real Pass", 1: "Real Fail"})
-    
-#     # Calculate risk value
-#     risk_qty = cof_mx[1, 0]
-#     risk = risk_qty / y_predict.size
-
-#     # Display accuracy, risk, and confusion matrix
-#     st.markdown("### Accuracy is: %s" % round(acc,4))
-#     st.markdown("### Risk is: %s" % round(risk,4))
-#     st.markdown("### Confusion Matrix:")
-#     st.dataframe(df_cof_mx)
-
-#     st.markdown("---")  # Add a horizontal rule
-#     return df_roc_data, fig_roc  # Return the ROC Data DataFrame and ROC figure plot
-
-
-
   
 def backend(df_x, df_y, reg_type):
     # df_reg = df_raw.copy()
-    st.markdown("Under Construction")
+    # st.markdown("Under Construction")
 
     # nom_choice = st.checkbox("Normalize Factor", value=False)
     # if nom_choice == True:
@@ -108,6 +53,9 @@ def backend(df_x, df_y, reg_type):
     #     st.dataframe(x)
     # else:
     #     x = df_x
+    # df_x
+    x = tools.nom_checkbox(df_x)
+    # x
 
     if reg_type == "Support Vector":
         svr_ker = st.selectbox("Choose Kernal", ["linear", "rbf", "poly", "sigmoid"])
@@ -116,22 +64,24 @@ def backend(df_x, df_y, reg_type):
         max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
         reg = DecisionTreeRegressor(max_depth=max_tree_layer)
     elif reg_type == "K-Means":
-        st.subheader("Under Construction")
-        cluster_num = st.number_input("Setup Cluster Q'ty", min_value=1, max_value=10, value=2)
-        reg = KNeighborsClassifier(n_neighbors=cluster_num)
-    elif reg_type == "Navie Bayes":
-        reg = GaussianNB()
+        
+        cluster_num = st.number_input("Setup Neighbor Q'ty", min_value=1, max_value=10, value=2)
+        reg = KNeighborsRegressor(n_neighbors=cluster_num)
+    # elif reg_type == "Navie Bayes":
+    #     st.subheader("Under Construction")
+    #     reg = GaussianNB()
     elif reg_type == "Gaussian Process":
         kernel = 1.0 * RBF(1.0)
         reg = GaussianProcessRegressor(kernel=kernel)
     # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
-    reg.fit(df_x, df_y)
-    y_pred = reg.predict(df_x)
+
+    reg.fit(x, df_y)
+    y_pred = reg.predict(x)
 
     if reg_type == "Decision Tree":
         feature_importances = reg.feature_importances_
 
-    imps = permutation_importance(reg, df_x, df_y)
+    imps = permutation_importance(reg, x, df_y)
     imps_mean = imps.importances_mean
     # imps_std = imps.importances_std
     # imps_mean
@@ -168,7 +118,8 @@ def backend_clf(df_x, df_y, clf_type):
     #     st.dataframe(x)
     # else:
     #     x = df_x
-    
+    x = tools.nom_checkbox(df_x)
+
     if clf_type == "Support Vector":
         svc_ker = st.selectbox("Choose Kernal", ["linear", "rbf", "poly", "sigmoid"])
         clf = SVC(gamma='auto', kernel=svc_ker)
@@ -176,17 +127,23 @@ def backend_clf(df_x, df_y, clf_type):
         max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
         clf = DecisionTreeClassifier(max_depth=max_tree_layer)
     elif clf_type == "K-Means":
-        st.subheader("Under Construction")
-        cluster_num = st.number_input("Setup Cluster Q'ty", min_value=1, max_value=10, value=2)
+        # st.subheader("Under Construction")
+        cluster_num = st.number_input("Setup Neighbor Q'ty", min_value=1, max_value=10, value=2)
         clf = KNeighborsClassifier(n_neighbors=cluster_num)
     elif clf_type == "Navie Bayes":
-        clf = GaussianNB()
+        nb_method = st.selectbox("Choose Method", ["Gaussian", "Bernoulli", "Multinomial"])
+        if nb_method == "Gaussian":
+            clf = GaussianNB()
+        elif nb_method == "Bernoulli":
+            clf = BernoulliNB()
+        elif nb_method == "Multinomial":
+            clf = MultinomialNB()
     elif clf_type == "Gaussian Process":
         kernel = 1.0 * RBF(1.0)
         clf = GaussianProcessClassifier(kernel=kernel)
     # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
-    clf.fit(df_x, df_y)
-    y_pred = clf.predict(df_x)
+    clf.fit(x, df_y)
+    y_pred = clf.predict(x)
     # proba = clf.predict_proba(x)
     # proba
     # clf.fit(df_x, df_y)
@@ -212,7 +169,7 @@ def backend_clf(df_x, df_y, clf_type):
         # centers = clf.cluster_centers_
         # centers
 
-    imps = permutation_importance(clf, df_x, df_y)
+    imps = permutation_importance(clf, x, df_y)
     imps_mean = imps.importances_mean
     # imps_std = imps.importances_std
     # imps_mean
@@ -307,23 +264,23 @@ def main():
     df_x = df_reg[factor]
     df_y = df_reg[response]
 
-    nom_choice = st.checkbox("Normalize Factor", value=False, key="normalize")
-    if nom_choice == True:
-        scaler = StandardScaler()
-        x = scaler.fit_transform(df_x)
-        st.subheader("Normalize X")
-        st.dataframe(x)
-    else:
-        x = df_x
+    # nom_choice = st.checkbox("Normalize Factor", value=False, key="normalize")
+    # if nom_choice == True:
+    #     scaler = StandardScaler()
+    #     x = scaler.fit_transform(df_x)
+    #     st.subheader("Normalize X")
+    #     st.dataframe(x)
+    # else:
+    #     x = df_x
 
     if ana_type == "Regression Method":
 
-        st.header("Under Construction")
-        reg_type = st.selectbox("### Choose Regression Method", ["Support Vector", "Decision Tree", "K-Means", "Navie Bayes", "Gaussian Process"])
+        # st.header("Under Construction")
+        reg_type = st.selectbox("### Choose Regression Method", ["Support Vector", "Decision Tree", "K-Means", "Gaussian Process"])
 
 
         
-        reg, y_pred = backend(x, df_y, reg_type)
+        reg, y_pred = backend(df_x, df_y, reg_type)
 
         if reg_type == "Decision Tree":
 
@@ -335,7 +292,28 @@ def main():
             st.subheader("Decision Tree")
             st.graphviz_chart(g)
 
+        factor_number = df_x.shape[1]
+        # factor_number
 
+        model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series = tools.backend_pefmce(df_y, y_pred, factor_number)
+
+        st.markdown("#### $R^2$: %s" % round(model_r2_score, 3))
+        st.markdown("               ")
+        st.markdown("#### Adjusted $R^2$: %s" % round(adj_r_squared, 3))
+        st.markdown("               ")
+        st.markdown("#### RMSE: %s" % round(model_rmse_score, 3))
+        st.markdown("               ")
+        st.markdown("#### MAPE: %s %%" % round(model_mape_score*100, 1))
+
+        st.subheader("Model Performance Figure")
+
+        df_result=df_raw.copy()
+        df_result["yhat"] = y_pred
+        df_result["resid"] = df_y - y_pred
+        fig_mod = tools.model_check_figure(df_result=df_result)
+        st.plotly_chart(fig_mod, use_container_width=True)
+
+        tools.reg_save(df_result, fig_mod, reg)
 
     if ana_type == "Classification":
 
@@ -344,7 +322,7 @@ def main():
         # df_x = df_reg[factor]
         # df_y = df_reg[response]
         
-        clf, y_pred = backend_clf(x, df_y, clf_type)
+        clf, y_pred = backend_clf(df_x, df_y, clf_type)
         # y_pred
 
         if clf_type == "Decision Tree":
