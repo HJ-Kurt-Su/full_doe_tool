@@ -121,6 +121,8 @@ def reg_save(df_result, fig, model):
         
         st.markdown("---")
 
+
+## Check Box Tool For Normalize
 def nom_checkbox(df_x):
     nom_choice = st.checkbox("Normalize Factor", value=False)
     if nom_choice == True:
