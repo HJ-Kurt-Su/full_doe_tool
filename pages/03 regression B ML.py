@@ -100,13 +100,14 @@ def backend(df_x, df_y, reg_type):
     reg.fit(x, df_y)
     y_pred = reg.predict(x)
 
-    if lin_type != "RANSAC":
-        coef = reg.coef_
-        st.dataframe(coef)
+    if reg_type == "Linear Model":
+        if lin_type != "RANSAC":
+            coef = reg.coef_
+            st.dataframe(coef)
 
-    elif lin_type == "RANSAC":
-        coef = reg.estimator_.coef_
-        st.dataframe(coef)
+        elif lin_type == "RANSAC":
+            coef = reg.estimator_.coef_
+            st.dataframe(coef)
 
 
     if reg_type == "Decision Tree":
