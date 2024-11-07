@@ -214,20 +214,23 @@ def clf_score(y, y_predict, gui_key=None):
 
         y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
         # Calculate accuracy and confusion matrix with the threshold code
-        acc = accuracy_score(y, y_pred_code)
-        cof_mx = confusion_matrix(y, y_pred_code)
+        # acc = accuracy_score(y, y_pred_code)
+        # cof_mx = confusion_matrix(y, y_pred_code)
     else:
+        y_pred_code = y_predict.copy()
         # Calculate accuracy and confusion matrix
-        acc = accuracy_score(y, y_predict)
-        cof_mx = confusion_matrix(y, y_predict)
+        # acc = accuracy_score(y, y_predict)
+        # cof_mx = confusion_matrix(y, y_predict)
 
+    acc = accuracy_score(y, y_pred_code)
+    cof_mx = confusion_matrix(y, y_pred_code)
     df_cof_mx = pd.DataFrame(cof_mx)  # Convert confusion matrix to DataFrame
     # Rename columns and index for better readability
     df_cof_mx = df_cof_mx.rename(columns={0: "Predict Pass", 1: "Predict Fail"}, index={0: "Real Pass", 1: "Real Fail"})
     
     # Calculate risk value
     risk_qty = cof_mx[1, 0]
-    risk = risk_qty / y_predict.size
+    risk = risk_qty / y_pred_code.size
 
     # Display accuracy, risk, and confusion matrix
     st.markdown("### Accuracy is: %s" % round(acc, 4))
@@ -241,10 +244,10 @@ def clf_score(y, y_predict, gui_key=None):
 
     if preci_recall == True:
 
-        precision, recall, thresholds = precision_recall_curve(y, y_predict)
-        ap = average_precision_score(y, y_predict)
+        precision, recall, thresholds = precision_recall_curve(y, y_pred_code)
+        ap = average_precision_score(y, y_pred_code)
         pr_auc = auc(recall, precision) 
-        f1_s = f1_score(y, y_predict)
+        f1_s = f1_score(y, y_pred_code)
         st.markdown("### Average Precision is: %s" % round(ap, 4))
         st.markdown("### Precision-Recall AUC is: %s" % round(pr_auc, 4))
         st.markdown("### F1 Socre is: %s" % round(f1_s, 4))
