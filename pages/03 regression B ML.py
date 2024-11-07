@@ -22,6 +22,12 @@ from sklearn.naive_bayes import GaussianNB, BernoulliNB, MultinomialNB
 
 from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF
+from sklearn.linear_model import (
+    HuberRegressor,
+    LinearRegression,
+    RANSACRegressor,
+    TheilSenRegressor,
+)
 
 
 import plotly.express as px
@@ -73,10 +79,35 @@ def backend(df_x, df_y, reg_type):
     elif reg_type == "Gaussian Process":
         kernel = 1.0 * RBF(1.0)
         reg = GaussianProcessRegressor(kernel=kernel)
+
+    elif reg_type == "Linear Model":
+        lin_type = st.selectbox("Choose Model", ["OLS", "Huber", "RANSAC", "TheilSen"])
+        if lin_type == "OLS":
+            reg = LinearRegression()
+
+        elif lin_type == "Huber":
+            reg = HuberRegressor()
+
+        elif lin_type == "RANSAC":
+            reg = RANSACRegressor()
+
+        elif lin_type == "TheilSen":
+            reg = TheilSenRegressor()
+
+
     # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
 
     reg.fit(x, df_y)
     y_pred = reg.predict(x)
+
+    if lin_type != "RANSAC":
+        coef = reg.coef_
+        st.dataframe(coef)
+
+    elif lin_type == "RANSAC":
+        coef = reg.estimator_.coef_
+        st.dataframe(coef)
+
 
     if reg_type == "Decision Tree":
         feature_importances = reg.feature_importances_
@@ -276,7 +307,7 @@ def main():
     if ana_type == "Regression Method":
 
         # st.header("Under Construction")
-        reg_type = st.selectbox("### Choose Regression Method", ["Support Vector", "Decision Tree", "K-Means", "Gaussian Process"])
+        reg_type = st.selectbox("### Choose Regression Method", ["Support Vector", "Decision Tree", "K-Means", "Gaussian Process", "Linear Model"])
 
 
         
