@@ -105,7 +105,7 @@ def backend(df_x, df_y, reg_type):
             coef = reg.coef_
             st.dataframe(coef)
 
-        elif lin_type == "RANSAC":
+        else:
             coef = reg.estimator_.coef_
             st.dataframe(coef)
 
@@ -339,7 +339,7 @@ def main():
 
         st.subheader("Model Performance Figure")
 
-        df_result=df_raw.copy()
+        df_result=df_reg.copy()
         df_result["yhat"] = y_pred
         df_result["resid"] = df_y - y_pred
         fig_mod = tools.model_check_figure(df_result=df_result)
