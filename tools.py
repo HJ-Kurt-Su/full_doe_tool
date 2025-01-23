@@ -125,11 +125,32 @@ def reg_save(df_result, fig, model):
 ## Check Box Tool For Normalize
 def nom_checkbox(df_x):
     nom_choice = st.checkbox("Normalize Factor", value=False)
+    nom_df = pd.DataFrame(columns=df_x.columns)
     if nom_choice == True:
+        st.subheader("Normalize Factor Mean & Standard Deviation")
+        
         scaler = StandardScaler()
         x = scaler.fit_transform(df_x)
         st.subheader("Normalize X")
         st.dataframe(x)
+        
+        for i in df_x.columns:           
+            std_dev = np.std(df_x[i])
+            mean = np.mean(df_x[i])
+            nom_df.at[0, i] = mean  # Add mean value at row 0, column i
+            nom_df.at[1, i] = std_dev  # Add std_dev value at row 1, column i
+            # nom_df[i,1] = std_dev
+            # st.markdown(i)
+            # st.markdown("Mean: %s" % mean)
+            # st.markdown("Standard Deviation: %s" % std_dev)
+        st.dataframe(nom_df)
+        download_file(name_label="Normalize Factor Mean & Std",
+                    button_label='Download Normalize Factor',
+                    file=nom_df,
+                    file_type="csv",
+                    gui_key="nom_df"
+                    )
+        
     else:
         x = df_x
 

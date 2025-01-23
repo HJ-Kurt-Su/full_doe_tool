@@ -60,7 +60,12 @@ def backend(df_x, df_y, reg_type):
     # else:
     #     x = df_x
     # df_x
+    st.markdown("---")
     x = tools.nom_checkbox(df_x)
+  
+
+    st.markdown("---")
+    # st.dataframe(pd.DataFrame(x).describe())
     # x
 
     if reg_type == "Support Vector":
@@ -256,6 +261,7 @@ def main():
     df_raw = tools.upload_file(uploaded_raw, url)
 
     st.dataframe(df_raw)
+    
     select_list = list(df_raw.columns)
 
     filter_req = st.checkbox('Filter Data')
@@ -277,6 +283,7 @@ def main():
         st.markdown("----------------") 
     else:
         df_reg = df_raw.copy()
+        st.dataframe(df_reg.describe())
     
     # select_list
     response = st.selectbox("### Choose Response(y)", select_list)
@@ -346,6 +353,38 @@ def main():
         st.plotly_chart(fig_mod, use_container_width=True)
 
         tools.reg_save(df_result, fig_mod, reg)
+
+
+        predict_performance = st.checkbox("Predict New Data & Check Performance", key="reg")
+
+        if predict_performance == True:
+            st.subheader("**Predict Portion**")
+        
+            uploaded_df = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"], key="predict")
+
+            if uploaded_df is None:
+                
+                url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
+
+            else: 
+                url = None
+            df_test = tools.upload_file(uploaded_df, url)
+            df_pred_x = df_test[factor]
+
+            y_hat = reg.predict(df_pred_x)
+            st.markdown("Predict Result:")
+            
+            df_test["predict"] = y_hat
+            st.dataframe(df_test)
+            
+            tools.download_file(name_label="Input Predict File Name",
+                            button_label='Download predict result as CSV',
+                            file=df_test,
+                            file_type="csv",
+                            gui_key="predict_data"
+                            )
+
+            st.markdown("---")
 
     if ana_type == "Classification":
 

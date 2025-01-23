@@ -114,6 +114,20 @@ def main():
         uploaded_model = BytesIO(requests.get(url_model).content)
         # r
 
+    st.markdown("---")
+    st.subheader('Normalization')
+    nom_req = st.checkbox("Need Normalize Data")
+    if nom_req == True:
+        nom_fac = st.file_uploader("請上傳您的 Normalization Factor 檔案", type=["csv", "xlsx"])
+        if nom_fac is not None:
+            url = None
+        else:
+            url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjqLJWGJ46N6GkXkkMCcmthgALF9J28Bm1SGnwYUdmTpTn4Kq8tCzQ-G5FMddTZFF5YANEtPYese-g/pub?gid=0&single=true&output=csv"
+        df_nom = tools.upload_file(nom_fac, url)
+        st.dataframe(df_nom)
+        
+    st.markdown("---")
+
     df_predict = backend(uploaded_model, df_prd)
 
     st.header('預測結果：')
