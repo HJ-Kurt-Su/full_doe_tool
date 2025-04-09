@@ -124,8 +124,18 @@ def main():
         else:
             url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjqLJWGJ46N6GkXkkMCcmthgALF9J28Bm1SGnwYUdmTpTn4Kq8tCzQ-G5FMddTZFF5YANEtPYese-g/pub?gid=0&single=true&output=csv"
         df_nom = tools.upload_file(nom_fac, url)
-        st.dataframe(df_nom)
         
+        st.dataframe(df_nom)
+
+        df_prd_nom = pd.DataFrame()
+        for i in df_nom.columns:
+            # i
+            nom_mean = df_nom[i][0]
+            nom_std = df_nom[i][1]
+
+            df_prd_nom[i] = (df_prd[i] - nom_mean) / nom_std 
+        df_prd = df_prd_nom.copy()
+
     st.markdown("---")
 
     df_predict = backend(uploaded_model, df_prd)

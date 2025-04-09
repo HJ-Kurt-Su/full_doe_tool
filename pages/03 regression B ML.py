@@ -14,6 +14,7 @@ from sklearn.inspection import permutation_importance
 
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, export_text, DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 # import graphviz
 from sklearn.tree import export_graphviz
 
@@ -28,6 +29,10 @@ from sklearn.linear_model import (
     RANSACRegressor,
     TheilSenRegressor,
 )
+
+from sklearn.model_selection import GridSearchCV, cross_val_score, StratifiedKFold, KFold
+
+from sklearn.metrics import make_scorer, r2_score
 
 
 import plotly.express as px
@@ -46,6 +51,66 @@ color_sequence = px.colors.qualitative.Pastel
 template = "simple_white"
 
 
+def compare_models(df_x, df_y, cv_splits=5):
+    """
+    Compare different regression models using StratifiedKFold and cross_val_score.
+
+    Parameters:
+        df_x (DataFrame): Features (X).
+        df_y (Series): Target variable (y).
+        models (dict): Dictionary of models to compare.
+        cv_splits (int): Number of StratifiedKFold splits.
+
+    Returns:
+        DataFrame: Cross-validation scores for each model.
+    """
+
+    models = {
+    "Decision Tree-2": DecisionTreeRegressor(max_depth=2, random_state=42),
+    "Decision Tree-3": DecisionTreeRegressor(max_depth=3, random_state=42),
+    "Decision Tree-5": DecisionTreeRegressor(max_depth=5, random_state=42),
+
+    "Random Forest-20-2": RandomForestRegressor(n_estimators=20, max_depth=2, random_state=42),
+    "Random Forest-60-6": RandomForestRegressor(n_estimators=60, max_depth=6, random_state=42),
+    "Random Forest-100-2": RandomForestRegressor(n_estimators=100, max_depth=2, random_state=42),
+    "Random Forest-20-10": RandomForestRegressor(n_estimators=20, max_depth=10, random_state=42),
+    "Random Forest-100-10": RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42),
+
+    "Linear Regression": LinearRegression(),
+    "Huber": HuberRegressor(),
+    "RANSAC": RANSACRegressor(),
+    "TheilSen": TheilSenRegressor(),
+    
+    "SVR-rbf": SVR(kernel="rbf"),
+    "SVR-linear": SVR(kernel="linear"),
+    "SVR-poly": SVR(kernel="poly"),
+    "SVR-sigmoid": SVR(kernel="sigmoid"),
+
+    "K-Neighbors-3": KNeighborsRegressor(n_neighbors=3),
+    "K-Neighbors-5": KNeighborsRegressor(n_neighbors=5),
+    "K-Neighbors-10": KNeighborsRegressor(n_neighbors=10),
+
+    "Gaussian Process-1-1": GaussianProcessRegressor(kernel=1.0 * RBF(1.0)),
+    "Gaussian Process-05-05": GaussianProcessRegressor(kernel=0.5 * RBF(0.5)),
+    "Gaussian Process-2-2": GaussianProcessRegressor(kernel=2.0 * RBF(2.0)),
+    }
+    
+    results = {}
+    kf = KFold(n_splits=cv_splits, shuffle=True, random_state=42)
+    df_x = tools.nom_checkbox(df_x, key="cv")[0]
+
+    for name, model in models.items():
+        # Use cross_val_score with R² as the scoring metric
+
+            
+        scores = cross_val_score(model, df_x, df_y, cv=kf, scoring=make_scorer(r2_score))
+        results[name] = scores
+        st.write(f"{name} R²: {scores.mean():.3f} ± {scores.std():.3f}")
+
+    # Convert results to a DataFrame
+    df_result = pd.DataFrame(results)
+    return df_result
+
   
 def backend(df_x, df_y, reg_type):
     # df_reg = df_raw.copy()
@@ -61,7 +126,7 @@ def backend(df_x, df_y, reg_type):
     #     x = df_x
     # df_x
     st.markdown("---")
-    x = tools.nom_checkbox(df_x)
+    x, nom_choice, df_nom = tools.nom_checkbox(df_x)
   
 
     st.markdown("---")
@@ -71,9 +136,18 @@ def backend(df_x, df_y, reg_type):
     if reg_type == "Support Vector":
         svr_ker = st.selectbox("Choose Kernal", ["linear", "rbf", "poly", "sigmoid"])
         reg = SVR(gamma='auto', kernel=svr_ker)
+
+        
     elif reg_type == "Decision Tree":
+        
         max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
-        reg = DecisionTreeRegressor(max_depth=max_tree_layer)
+        reg = DecisionTreeRegressor(max_depth=max_tree_layer, random_state=42)
+
+    elif reg_type == "Random Forest":
+        tree_num = st.number_input("Setup Max Tree Number", min_value=10, value=10)
+        max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=30, value=2)
+        reg = RandomForestRegressor(n_estimators=tree_num, max_depth=max_tree_layer, random_state=42)
+
     elif reg_type == "K-Means":
         
         cluster_num = st.number_input("Setup Neighbor Q'ty", min_value=1, max_value=10, value=2)
@@ -139,7 +213,7 @@ def backend(df_x, df_y, reg_type):
                   index=list(df_x.columns))
         st.dataframe(df_tree_imps)
     
-    return reg, y_pred
+    return reg, y_pred, nom_choice, df_nom
 
 
 def backend_clf(df_x, df_y, clf_type):
@@ -155,7 +229,7 @@ def backend_clf(df_x, df_y, clf_type):
     #     st.dataframe(x)
     # else:
     #     x = df_x
-    x = tools.nom_checkbox(df_x)
+    x, nom_choice, df_nom = tools.nom_checkbox(df_x)
 
     if clf_type == "Support Vector":
         svc_ker = st.selectbox("Choose Kernal", ["linear", "rbf", "poly", "sigmoid"])
@@ -163,6 +237,11 @@ def backend_clf(df_x, df_y, clf_type):
     elif clf_type == "Decision Tree":
         max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
         clf = DecisionTreeClassifier(max_depth=max_tree_layer)
+    elif clf_type == "Random Forest":
+        tree_num = st.number_input("Setup Max Tree Number", min_value=10, value=10)
+        max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=30, value=2)
+        clf = RandomForestClassifier(n_estimators=tree_num, max_depth=max_tree_layer, random_state=42)
+    
     elif clf_type == "K-Means":
         # st.subheader("Under Construction")
         cluster_num = st.number_input("Setup Neighbor Q'ty", min_value=1, max_value=10, value=2)
@@ -232,7 +311,7 @@ def backend_clf(df_x, df_y, clf_type):
     # clf.coef_()
 
     
-    return clf, y_pred
+    return clf, y_pred, nom_choice, df_nom
 
 def main():
 
@@ -315,11 +394,27 @@ def main():
     if ana_type == "Regression Method":
 
         # st.header("Under Construction")
-        reg_type = st.selectbox("### Choose Regression Method", ["Support Vector", "Decision Tree", "K-Means", "Gaussian Process", "Linear Model"])
+        cross_val_req = st.checkbox("Cross Validation", value=False, key="cross_val")
+        if cross_val_req == True:
+            st.subheader("Cross Validation")
+            # cross_val_mod = st.multiselect("Choose Cross Validation Compare Model", 
+            #                                ["Support Vector", "Decision Tree", "Random Forest", "K-Means", "Gaussian Process", "Linear Model"]
+            #                                )
+            cross_val_num = st.number_input("Choose Cross Validation Number", value=5, min_value=2, max_value=10)
+            df_cross_val = compare_models(df_x, df_y, cv_splits=cross_val_num)
+            st.dataframe(df_cross_val)
+            # cross_val_num = 5
+
+            # reg.fit(x, df_y)
+            # y_pred = reg.predict(x)
+
+            # cv_score = cross_val_score(reg, df_x, df_y, cv=cross_val_num)
+            # st.dataframe(cv_score)
 
 
+        reg_type = st.selectbox("### Choose Regression Method", ["Support Vector", "Decision Tree", "Random Forest", "K-Means", "Gaussian Process", "Linear Model"])
         
-        reg, y_pred = backend(df_x, df_y, reg_type)
+        reg, y_pred, nom_choice, df_nom = backend(df_x, df_y, reg_type)
 
         if reg_type == "Decision Tree":
 
@@ -370,7 +465,17 @@ def main():
                 url = None
             df_test = tools.upload_file(uploaded_df, url)
             df_pred_x = df_test[factor]
+            if nom_choice == True:
+                    
+                df_prd_nom = pd.DataFrame()
+                for i in df_nom.columns:
+                    # i
+                    nom_mean = df_nom[i][0]
+                    nom_std = df_nom[i][1]
 
+                    df_prd_nom[i] = (df_pred_x[i] - nom_mean) / nom_std 
+                df_pred_x = df_prd_nom.copy()
+      
             y_hat = reg.predict(df_pred_x)
             st.markdown("Predict Result:")
             
@@ -386,9 +491,42 @@ def main():
 
             st.markdown("---")
 
+            check_pefmce = st.checkbox("Check Model Performance")
+
+            if check_pefmce == True:
+                st.subheader("**Model Perfomance Portion**")
+
+                uploaded_y = st.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"], key="up_y")
+
+                if uploaded_y is None:
+                    
+                    url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5skYRbfVPGE6RFYIM6Gg9QurH8u3h_RLfjt-CG0z5YgyxWEUTOdvoKmVkfWCLc2ECAuSEKaHVYPOA/pub?gid=0&single=true&output=csv"
+
+                else: 
+                    url = None
+
+                df_y = tools.upload_file(uploaded_y, url)
+                df_y
+                select_list = list(df_raw.columns)
+                y = st.selectbox("Please select real value", select_list)
+                df_y = df_y[y]
+                # df_y
+
+                factor_number = st.number_input("Choose Factor Number", value=2, min_value=2)
+
+                model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series = tools.backend_pefmce(df_y, y_hat, factor_number)
+                    
+                st.markdown("#### $R^2$: %s" % round(model_r2_score, 3))
+                st.markdown("               ")
+                st.markdown("#### Adjusted $R^2$: %s" % round(adj_r_squared, 3))
+                st.markdown("               ")
+                st.markdown("#### RMSE: %s" % round(model_rmse_score, 3))
+                st.markdown("               ")
+                st.markdown("#### MAPE: %s %%" % round(model_mape_score*100, 1))
+
     if ana_type == "Classification":
 
-        clf_type = st.selectbox("### Choose Classification Method", ["Support Vector", "Decision Tree", "K-Means", "Navie Bayes", "Gaussian Process"])
+        clf_type = st.selectbox("### Choose Classification Method", ["Support Vector", "Decision Tree", "Random Forest", "K-Means", "Navie Bayes", "Gaussian Process"])
 
         # df_x = df_reg[factor]
         # df_y = df_reg[response]
