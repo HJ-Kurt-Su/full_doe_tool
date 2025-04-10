@@ -22,7 +22,7 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.naive_bayes import GaussianNB, BernoulliNB, MultinomialNB
 
 from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel, DotProduct
 from sklearn.linear_model import (
     HuberRegressor,
     LinearRegression,
@@ -33,6 +33,7 @@ from sklearn.linear_model import (
 from sklearn.model_selection import GridSearchCV, cross_val_score, StratifiedKFold, KFold
 
 from sklearn.metrics import make_scorer, r2_score
+from sklearn.preprocessing import MinMaxScaler
 
 
 import plotly.express as px
@@ -51,7 +52,7 @@ color_sequence = px.colors.qualitative.Pastel
 template = "simple_white"
 
 
-def compare_models(df_x, df_y, cv_splits=5):
+def compare_models(df_x, df_y, model_list, cv_splits=5):
     """
     Compare different regression models using StratifiedKFold and cross_val_score.
 
@@ -64,51 +65,76 @@ def compare_models(df_x, df_y, cv_splits=5):
     Returns:
         DataFrame: Cross-validation scores for each model.
     """
+    models = {}
 
-    models = {
-    "Decision Tree-2": DecisionTreeRegressor(max_depth=2, random_state=42),
-    "Decision Tree-3": DecisionTreeRegressor(max_depth=3, random_state=42),
-    "Decision Tree-5": DecisionTreeRegressor(max_depth=5, random_state=42),
-
-    "Random Forest-20-2": RandomForestRegressor(n_estimators=20, max_depth=2, random_state=42),
-    "Random Forest-60-6": RandomForestRegressor(n_estimators=60, max_depth=6, random_state=42),
-    "Random Forest-100-2": RandomForestRegressor(n_estimators=100, max_depth=2, random_state=42),
-    "Random Forest-20-10": RandomForestRegressor(n_estimators=20, max_depth=10, random_state=42),
-    "Random Forest-100-10": RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42),
-
-    "Linear Regression": LinearRegression(),
-    "Huber": HuberRegressor(),
-    "RANSAC": RANSACRegressor(),
-    "TheilSen": TheilSenRegressor(),
-    
-    "SVR-rbf": SVR(kernel="rbf"),
-    "SVR-linear": SVR(kernel="linear"),
-    "SVR-poly": SVR(kernel="poly"),
-    "SVR-sigmoid": SVR(kernel="sigmoid"),
-
-    "K-Neighbors-3": KNeighborsRegressor(n_neighbors=3),
-    "K-Neighbors-5": KNeighborsRegressor(n_neighbors=5),
-    "K-Neighbors-10": KNeighborsRegressor(n_neighbors=10),
-
-    "Gaussian Process-1-1": GaussianProcessRegressor(kernel=1.0 * RBF(1.0)),
-    "Gaussian Process-05-05": GaussianProcessRegressor(kernel=0.5 * RBF(0.5)),
-    "Gaussian Process-2-2": GaussianProcessRegressor(kernel=2.0 * RBF(2.0)),
-    }
+    for i in model_list:
+        if i == "Support Vector":
+            models.update({"SVR-rbf": SVR(gamma="auto", kernel="rbf"),
+                            "SVR-linear": SVR(gamma="auto", kernel="linear"),
+                            "SVR-poly": SVR(gamma="auto", kernel="poly"),
+                            "SVR-sigmoid": SVR(gamma="auto", kernel="sigmoid"),
+                            })
+        elif i == "Decision Tree":
+            models.update({"Decision Tree-2": DecisionTreeRegressor(max_depth=2, random_state=42),
+                            "Decision Tree-3": DecisionTreeRegressor(max_depth=3, random_state=42),
+                            "Decision Tree-5": DecisionTreeRegressor(max_depth=5, random_state=42),
+                            })
+        elif i == "Random Forest":
+            models.update({"Random Forest-20-2": RandomForestRegressor(n_estimators=20, max_depth=2, random_state=42),
+                            "Random Forest-60-6": RandomForestRegressor(n_estimators=60, max_depth=6, random_state=42),
+                            "Random Forest-100-2": RandomForestRegressor(n_estimators=100, max_depth=2, random_state=42),
+                            "Random Forest-20-10": RandomForestRegressor(n_estimators=20, max_depth=10, random_state=42),
+                            "Random Forest-100-10": RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42),
+                            })
+        elif i == "K-Means":
+            models.update({"K-Neighbors-3": KNeighborsRegressor(n_neighbors=3),
+                            "K-Neighbors-5": KNeighborsRegressor(n_neighbors=5),
+                            "K-Neighbors-10": KNeighborsRegressor(n_neighbors=10),
+                            })
+        elif i == "Linear Model":
+            models.update({"Linear Regression": LinearRegression(),
+                            "Huber": HuberRegressor(),
+                            "RANSAC": RANSACRegressor(),
+                            "TheilSen": TheilSenRegressor(),
+                            })
+        elif i == "Gaussian Process":
+            kernel = RBF(length_scale=1.0) + WhiteKernel(noise_level=1)
+            kernel2 = RBF(length_scale=1.0)
+            kernel3 = RBF(length_scale=1.0) + DotProduct(sigma_0=1.0)
+            models.update({"Gaussian Process-rbf-white": GaussianProcessRegressor(kernel=kernel),
+                           "Gaussian Process-rbf": GaussianProcessRegressor(kernel=kernel2),
+                            "Gaussian Process-rbf-dot": GaussianProcessRegressor(kernel=kernel3),
+                            })
+    models
     
     results = {}
     kf = KFold(n_splits=cv_splits, shuffle=True, random_state=42)
-    df_x = tools.nom_checkbox(df_x, key="cv")[0]
+    df_x_cv = tools.nom_checkbox(df_x, key="cv")[0]
+    st_cv = st.button("Start Cross Validation", key="cv_button")
+    if st_cv == True:
+        for names, model in models.items():
+            # Use cross_val_score with R² as the scoring metric
+            names
+            if "Gaussian Process" in names:
+                # Use Gaussian Process with MinMaxScaler
+                y_scaler = MinMaxScaler()
+                y = y_scaler.fit_transform(df_y.values.reshape(-1, 1))
+                df_y_cv = pd.DataFrame(y, columns=[df_y.name]).copy()
+                # df_y = pd.DataFrame(y, columns=[df_y.name])
+                # st.subheader("Normalize Y")
+                # st.dataframe(y)
+            else:
+                df_y_cv = df_y.copy()
+                df_x_cv = df_x.copy()
+            # df_y_cv = df_y.copy()
 
-    for name, model in models.items():
-        # Use cross_val_score with R² as the scoring metric
-
-            
-        scores = cross_val_score(model, df_x, df_y, cv=kf, scoring=make_scorer(r2_score))
-        results[name] = scores
-        st.write(f"{name} R²: {scores.mean():.3f} ± {scores.std():.3f}")
+            scores = cross_val_score(model, df_x_cv, df_y_cv, cv=kf, scoring=make_scorer(r2_score))
+            results[names] = scores
+            st.write(f"{names} R²: {scores.mean():.3f} ± {scores.std():.3f}")
 
     # Convert results to a DataFrame
     df_result = pd.DataFrame(results)
+
     return df_result
 
   
@@ -126,13 +152,14 @@ def backend(df_x, df_y, reg_type):
     #     x = df_x
     # df_x
     st.markdown("---")
-    x, nom_choice, df_nom = tools.nom_checkbox(df_x)
+    x, nom_choice, df_nom = tools.nom_checkbox(df_x, key="nom_in_reg")
   
 
     st.markdown("---")
     # st.dataframe(pd.DataFrame(x).describe())
     # x
-
+    gpr_std = None
+    dict_yscarler = None
     if reg_type == "Support Vector":
         svr_ker = st.selectbox("Choose Kernal", ["linear", "rbf", "poly", "sigmoid"])
         reg = SVR(gamma='auto', kernel=svr_ker)
@@ -156,8 +183,34 @@ def backend(df_x, df_y, reg_type):
     #     st.subheader("Under Construction")
     #     reg = GaussianNB()
     elif reg_type == "Gaussian Process":
-        kernel = 1.0 * RBF(1.0)
-        reg = GaussianProcessRegressor(kernel=kernel)
+
+        gpr_ker = st.selectbox("Choose Kernal", ["rbf+white_noise", "rbf", "rbf+dotproduct"])
+        if gpr_ker == "rbf+white_noise":
+            kernel = RBF(length_scale=1.0) + WhiteKernel(noise_level=1)
+        elif gpr_ker == "rbf":
+            kernel = RBF(length_scale=1.0)
+        elif gpr_ker == "rbf+dotproduct":
+            kernel = RBF(length_scale=1.0) + DotProduct(sigma_0=1.0)
+        
+        dict_yscarler = {
+            "Y_Max": df_y.max(),
+            "Y_Min": df_y.min(),
+            "Y_Delta": df_y.max() - df_y.min(),
+            # "Y4": MinMaxScaler(feature_range=(0, 1)),
+        }
+        # dict_yscarler
+        # y_name = df_y.name
+        # y_name
+        y_scaler = MinMaxScaler()
+        y = y_scaler.fit_transform(df_y.values.reshape(-1, 1))
+
+        # y
+        df_y = pd.DataFrame(y, columns=[df_y.name])
+        st.subheader("Normalize Y")
+        st.dataframe(y)
+        # kernel = RBF()
+        # kernel = RBF(length_scale=1.0) + WhiteKernel(noise_level=1)
+        reg = GaussianProcessRegressor(kernel=kernel, random_state=42, n_restarts_optimizer=10)
 
     elif reg_type == "Linear Model":
         lin_type = st.selectbox("Choose Model", ["OLS", "Huber", "RANSAC", "TheilSen"])
@@ -177,17 +230,30 @@ def backend(df_x, df_y, reg_type):
     # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
 
     reg.fit(x, df_y)
-    y_pred = reg.predict(x)
+    if reg_type == "Gaussian Process":
+        y_pred, gpr_std = reg.predict(x, return_std=True)
+        st.write("GPR Std:")  
+        st.dataframe(gpr_std)
+
+    else:
+        y_pred = reg.predict(x)
+        
+        # y_pred = y_scaler.inverse_transform(y_pred.reshape(-1, 1))
+        # y_pred = pd.DataFrame(y_pred, columns=[df_y.name])
+        # st.dataframe(y_pred)
+    # y_pred = reg.predict(x)
 
     if reg_type == "Linear Model":
         if lin_type != "RANSAC":
             coef = reg.coef_
+            st.markdown("Linear Model Coefficence")
             st.dataframe(coef)
 
         else:
             coef = reg.estimator_.coef_
             st.dataframe(coef)
 
+    
 
     if reg_type == "Decision Tree":
         feature_importances = reg.feature_importances_
@@ -213,7 +279,7 @@ def backend(df_x, df_y, reg_type):
                   index=list(df_x.columns))
         st.dataframe(df_tree_imps)
     
-    return reg, y_pred, nom_choice, df_nom
+    return reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler
 
 
 def backend_clf(df_x, df_y, clf_type):
@@ -397,11 +463,11 @@ def main():
         cross_val_req = st.checkbox("Cross Validation", value=False, key="cross_val")
         if cross_val_req == True:
             st.subheader("Cross Validation")
-            # cross_val_mod = st.multiselect("Choose Cross Validation Compare Model", 
-            #                                ["Support Vector", "Decision Tree", "Random Forest", "K-Means", "Gaussian Process", "Linear Model"]
-            #                                )
+            cross_val_mod = st.multiselect("Choose Cross Validation Compare Model", 
+                                           ["Support Vector", "Decision Tree", "Random Forest", "K-Means", "Linear Model", "Gaussian Process"]
+                                           )
             cross_val_num = st.number_input("Choose Cross Validation Number", value=5, min_value=2, max_value=10)
-            df_cross_val = compare_models(df_x, df_y, cv_splits=cross_val_num)
+            df_cross_val = compare_models(df_x, df_y, model_list=cross_val_mod, cv_splits=cross_val_num)
             st.dataframe(df_cross_val)
             # cross_val_num = 5
 
@@ -414,7 +480,17 @@ def main():
 
         reg_type = st.selectbox("### Choose Regression Method", ["Support Vector", "Decision Tree", "Random Forest", "K-Means", "Gaussian Process", "Linear Model"])
         
-        reg, y_pred, nom_choice, df_nom = backend(df_x, df_y, reg_type)
+        
+        # reg_type = st.selectbox("### Choose Regression Method", ["Support Vector", "Decision Tree", "Random Forest", "K-Means", "Linear Model"])
+        
+        if reg_type == "Gaussian Process":
+            reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler = backend(df_x, df_y, reg_type)
+            y_min = dict_yscarler["Y_Min"]
+            # y_max = dict_yscarler["Y_Max"]    
+            y_delta = dict_yscarler["Y_Delta"]
+            df_y = (df_y - y_min)/y_delta
+        else:
+            reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler = backend(df_x, df_y, reg_type)
 
         if reg_type == "Decision Tree":
 
