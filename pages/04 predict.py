@@ -3,6 +3,7 @@ import pandas as pd
 import streamlit as st
 import requests
 from statsmodels.iolib.smpickle import load_pickle
+import pickle
 # import datetime
 from io import BytesIO
 import tools
@@ -18,7 +19,13 @@ import numpy as np
 
 #%% 包成一整個 backend function: 主要資料處理及視覺化儀表板製作
 def backend(uploaded_model, df_raw):
-    model = load_pickle(uploaded_model)
+    # model = load_pickle(uploaded_model)
+    model = pickle.load(uploaded_model)
+    # para_name = model.feature_names_in_
+    # para_name = model.get_feature_names_out()
+    para_name = model.keys()
+    st.markdown("#### Model Parameter")
+    para_name
 
     y_hat = model.predict(df_raw)
     df_raw["predict"] = y_hat

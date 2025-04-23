@@ -33,7 +33,7 @@ from sklearn.linear_model import (
 from sklearn.model_selection import GridSearchCV, cross_val_score, StratifiedKFold, KFold
 
 from sklearn.metrics import make_scorer, r2_score
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
 import plotly.express as px
@@ -166,7 +166,7 @@ def compare_models_clf(df_x, df_y, model_list, cv_splits=5):
         DataFrame: Cross-validation scores for each model.
     """
     models = {}
-    score_method = st.selectbox("Choose Score Method", ["accuracy", "f1", "roc_auc"])
+    score_method = st.selectbox("Choose Score Method", ["accuracy", "f1", "roc_auc", "recall"])
 
     for i in model_list:
         if i == "Support Vector":
@@ -312,8 +312,10 @@ def optimize_model(df_x, df_y, reg_type):
             # 'normalize_y': [True, False]  # Whether to normalize the target variable
         }
         reg = GaussianProcessRegressor(random_state=42, n_restarts_optimizer=10)
+
         y_scaler = MinMaxScaler()
         y = y_scaler.fit_transform(df_y.values.reshape(-1, 1))
+
         
 
 
@@ -347,7 +349,8 @@ def optimize_model(df_x, df_y, reg_type):
     estimator=reg,
     param_grid=param_grid,
     cv=5,  # 5 折交叉驗證
-    scoring=make_scorer(r2_score),  # 使用 R² 作為評估指標
+    # scoring=make_scorer(r2_score),  # 使用 R² 作為評估指標
+    scoring="r2",  # 使用 R² 作為評估指標
     verbose=1,
     n_jobs=-1  # 使用所有可用的 CPU 核心
     )
@@ -398,9 +401,14 @@ def backend(df_x, df_y, reg_type):
         reg = DecisionTreeRegressor(max_depth=max_tree_layer, random_state=42)
 
     elif reg_type == "Random Forest":
-        tree_num = st.number_input("Setup Max Tree Number", min_value=10, value=10)
+        
         max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=30, value=2)
-        reg = RandomForestRegressor(n_estimators=tree_num, max_depth=max_tree_layer, random_state=42)
+        min_leaf = st.number_input("Setup Min Sample Leaf", min_value=1, value=1)
+        min_split = st.number_input("Setup Min Sample Split", min_value=2, value=2)
+        tree_num = st.number_input("Setup Max Tree Number", min_value=10, value=10)
+        reg = RandomForestRegressor(n_estimators=tree_num, max_depth=max_tree_layer, 
+                                    min_samples_leaf=min_leaf, min_samples_split=min_split,
+                                    random_state=42)
 
     elif reg_type == "K-Means":
         
@@ -531,7 +539,7 @@ def backend_clf(df_x, df_y, clf_type):
 
     if clf_type == "Support Vector":
         svc_ker = st.selectbox("Choose Kernal", ["linear", "rbf", "poly", "sigmoid"])
-        clf = SVC(gamma='auto', kernel=svc_ker)
+        clf = SVC(gamma='auto', kernel=svc_ker, probability=True)
     elif clf_type == "Decision Tree":
         max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=10, value=2)
         clf = DecisionTreeClassifier(max_depth=max_tree_layer)
@@ -564,9 +572,18 @@ def backend_clf(df_x, df_y, clf_type):
         clf = GaussianProcessClassifier(kernel=kernel)
     # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
     clf.fit(x, df_y)
-    y_pred = clf.predict(x)
-    # proba = clf.predict_proba(x)
-    # proba
+    # if clf_type == "Gaussian Process":
+    #     y_pred, gpr_std = clf.predict(x, return_std=True)
+    #     st.write("GPR Std:")
+    #     st.dataframe(gpr_std)   
+    # else:
+    y_pred = clf.predict_proba(x)[:,1] # probability=True
+    # y_pred = pd.DataFrame(y_pred)       
+    # y_pred = clf.predict(x)
+
+    
+    # st.dataframe(proba)
+
     # clf.fit(df_x, df_y)
     # y_pred = clf.predict(df_x)
     # feature_importances = clf.feature_importances_
@@ -686,7 +703,7 @@ def main():
 
     df_x = df_reg[factor]
     df_y = df_reg[response]
-
+    df_factor = pd.DataFrame(factor)
 
     if ana_type == "Regression Method":
 
@@ -762,8 +779,9 @@ def main():
         df_result["resid"] = df_y - y_pred
         fig_mod = tools.model_check_figure(df_result=df_result)
         st.plotly_chart(fig_mod, use_container_width=True)
+        
 
-        tools.reg_save(df_result, fig_mod, reg)
+        tools.reg_save(df_result, fig_mod, reg, df_factor)
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="reg")
@@ -875,9 +893,10 @@ def main():
 
 
         # df_roc_data, fig_roc = clf_score_sklearn(df_y, y_pred)
-        df_roc_data, fig_roc = tools.clf_score(df_y, y_pred)
+        gui_key_main = {"threshold": "classify_roc_main", "threshold_check": "key_in_main"}
+        df_roc_data, fig_roc = tools.clf_score(df_y, y_pred, gui_key=gui_key_main)
 
-        tools.reg_save(df_roc_data, fig_roc, clf)
+        tools.reg_save(df_roc_data, fig_roc, clf, df_factor)
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="clf")

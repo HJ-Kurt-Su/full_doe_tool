@@ -91,7 +91,7 @@ def download_file(name_label, button_label, file, file_type, gui_key):
     
 
 
-def reg_save(df_result, fig, model):
+def reg_save(df_result, fig, model, df_factor):
         st.markdown("---")
 
         download_file(name_label="Input Result File Name",
@@ -120,6 +120,14 @@ def reg_save(df_result, fig, model):
                       )
         
         st.markdown("---")
+
+        
+        download_file(name_label="Input Factor File Name",
+                      button_label='Download factor as CSV',
+                      file=df_factor,
+                      file_type="csv",
+                      gui_key="factor_data"
+                      )
 
 
 ## Check Box Tool For Normalize
@@ -233,7 +241,8 @@ def clf_score(y, y_predict, gui_key=None):
         else:
             threshold_cut = st.selectbox("Choose Threshold", threshold, key=gui_key["threshold"])
 
-        y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
+        # y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
+        y_pred_code = (y_predict > threshold_cut).astype(int)
         # Calculate accuracy and confusion matrix with the threshold code
         # acc = accuracy_score(y, y_pred_code)
         # cof_mx = confusion_matrix(y, y_pred_code)
