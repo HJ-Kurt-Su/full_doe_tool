@@ -233,13 +233,18 @@ def clf_score(y, y_predict, gui_key=None):
     st.subheader("ROC Figure")
     st.plotly_chart(fig_roc, use_container_width=True)  # Display the ROC curve plot
 
+    # st.dataframe(threshold)
     if gui_key:  # If GUI keys are provided, handle threshold selection
         st.subheader("Accuracy Judge")
         key_in = st.checkbox("Key-in threshold", key=gui_key["threshold_check"])
         if key_in:
             threshold_cut = st.number_input("Key-in threshold value", min_value=0.0001, max_value=0.9999, value=0.5)
+            st.write("Threshold value is: %s" % threshold_cut)
         else:
+
+            # st.dataframe(threshold)
             threshold_cut = st.selectbox("Choose Threshold", threshold, key=gui_key["threshold"])
+            st.write("Threshold by select: %s" % threshold_cut)
 
         # y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
         y_pred_code = (y_predict > threshold_cut).astype(int)

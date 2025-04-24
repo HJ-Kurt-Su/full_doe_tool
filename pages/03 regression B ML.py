@@ -30,6 +30,7 @@ from sklearn.linear_model import (
     TheilSenRegressor,
 )
 
+from xgboost import XGBRegressor, XGBClassifier
 from sklearn.model_selection import GridSearchCV, cross_val_score, StratifiedKFold, KFold
 
 from sklearn.metrics import make_scorer, r2_score
@@ -112,6 +113,14 @@ def compare_models(df_x, df_y, model_list, cv_splits=5):
                             "Gradient Boosting-20-10": GradientBoostingRegressor(n_estimators=20, max_depth=10, learning_rate=0.5, random_state=42),
                             "Gradient Boosting-100-10": GradientBoostingRegressor(n_estimators=100, max_depth=10, learning_rate=0.1, random_state=42),
                             })
+        elif i == "XGBoosting":
+            models.update({"XGBoosting-20-2": XGBRegressor(objective="reg:squarederror", n_estimators=20, max_depth=2, learning_rate=0.1, random_state=42),
+                            "XGBoosting-60-6": XGBRegressor(objective="reg:squarederror", n_estimators=60, max_depth=6, learning_rate=0.5, random_state=42),
+                            "XGBoosting-100-2": XGBRegressor(objective="reg:squarederror", n_estimators=100, max_depth=2, learning_rate=0.9, random_state=42),
+                            "XGBoosting-20-10": XGBRegressor(objective="reg:squarederror", n_estimators=20, max_depth=10, learning_rate=0.5, random_state=42),
+                            "XGBoosting-100-10": XGBRegressor(objective="reg:squarederror", n_estimators=100, max_depth=10, learning_rate=0.1,  random_state=42),
+                            })
+
     models
     
     results = {}
@@ -198,6 +207,13 @@ def compare_models_clf(df_x, df_y, model_list, cv_splits=5):
         #                     "RANSAC": RANSACRegressor(),
         #                     "TheilSen": TheilSenRegressor(),
         #                     })
+
+        elif i == "Naive Bayes":
+            models.update({"GaussianNB": GaussianNB(),
+                            "BernoulliNB": BernoulliNB(),
+                            "MultinomialNB": MultinomialNB(),
+                            })
+            
         elif i == "Gaussian Process":
             kernel = RBF(length_scale=1.0) + WhiteKernel(noise_level=1)
             kernel2 = RBF(length_scale=1.0)
@@ -205,6 +221,21 @@ def compare_models_clf(df_x, df_y, model_list, cv_splits=5):
             models.update({"Gaussian Process-rbf-white": GaussianProcessClassifier(kernel=kernel),
                            "Gaussian Process-rbf": GaussianProcessClassifier(kernel=kernel2),
                             "Gaussian Process-rbf-dot": GaussianProcessClassifier(kernel=kernel3),
+                            })
+        elif i== "Gradient Boosting":
+            models.update({"Gradient Boosting-20-2": GradientBoostingClassifier(n_estimators=20, max_depth=2, learning_rate=0.1, random_state=42),
+                            "Gradient Boosting-60-6": GradientBoostingClassifier(n_estimators=60, max_depth=6, learning_rate=0.5, random_state=42),
+                            "Gradient Boosting-100-2": GradientBoostingClassifier(n_estimators=100, max_depth=2, learning_rate=0.9, random_state=42),
+                            "Gradient Boosting-20-10": GradientBoostingClassifier(n_estimators=20, max_depth=10, learning_rate=0.5, random_state=42),
+                            "Gradient Boosting-100-10": GradientBoostingClassifier(n_estimators=100, max_depth=10, learning_rate=0.1, random_state=42),
+                            })
+            
+        elif i == "XGBoosting":
+            models.update({"XGBoosting-20-2": XGBClassifier(objective="binary:logistic", n_estimators=20, max_depth=2, learning_rate=0.1, random_state=42),
+                            "XGBoosting-60-6": XGBClassifier(objective="binary:logistic", n_estimators=60, max_depth=6, learning_rate=0.5, random_state=42),
+                            "XGBoosting-100-2": XGBClassifier(objective="binary:logistic", n_estimators=100, max_depth=2, learning_rate=0.9, random_state=42),
+                            "XGBoosting-20-10": XGBClassifier(objective="binary:logistic", n_estimators=20, max_depth=10, learning_rate=0.5, random_state=42),
+                            "XGBoosting-100-10": XGBClassifier(objective="binary:logistic", n_estimators=100, max_depth=10, learning_rate=0.1,  random_state=42),
                             })
     models
     
@@ -467,6 +498,12 @@ def backend(df_x, df_y, reg_type):
         lrn_rate = st.number_input("Setup Learning Rate", value=0.1, min_value=0.01, max_value=1.0, step=0.01)
         reg = GradientBoostingRegressor(n_estimators=tree_num, max_depth=max_tree_layer, learning_rate=lrn_rate, random_state=42)
 
+    elif reg_type == "XGBoosting":
+        tree_num = st.number_input("Setup Max Tree Number", min_value=10, value=10)
+        max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=30, value=2)
+        lrn_rate = st.number_input("Setup Learning Rate", value=0.1, min_value=0.01, max_value=1.0, step=0.01)
+        reg = XGBRegressor(objective="reg:squarederror", n_estimators=tree_num, max_depth=max_tree_layer, learning_rate=lrn_rate,  random_state=42)
+
     # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
 
     reg.fit(x, df_y)
@@ -570,6 +607,19 @@ def backend_clf(df_x, df_y, clf_type):
         elif gpr_ker == "rbf+dotproduct":
             kernel = RBF(length_scale=1.0) + DotProduct(sigma_0=1.0)
         clf = GaussianProcessClassifier(kernel=kernel)
+
+    elif clf_type == "Gradient Boosting":
+        tree_num = st.number_input("Setup Max Tree Number", min_value=10, value=10)
+        max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=30, value=2)
+        lrn_rate = st.number_input("Setup Learning Rate", value=0.1, min_value=0.01, max_value=1.0, step=0.01)
+        clf = GradientBoostingClassifier(n_estimators=tree_num, max_depth=max_tree_layer, learning_rate=lrn_rate, random_state=42)
+
+    elif clf_type == "XGBoosting":
+        tree_num = st.number_input("Setup Max Tree Number", min_value=10, value=10)
+        max_tree_layer = st.number_input("Setup Max Tree Layer", min_value=1, max_value=30, value=2)
+        lrn_rate = st.number_input("Setup Learning Rate", value=0.1, min_value=0.01, max_value=1.0, step=0.01)
+        clf = XGBClassifier(objective="binary:logistic", n_estimators=tree_num, max_depth=max_tree_layer, learning_rate=lrn_rate,  random_state=42)
+
     # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
     clf.fit(x, df_y)
     # if clf_type == "Gaussian Process":
@@ -578,6 +628,7 @@ def backend_clf(df_x, df_y, clf_type):
     #     st.dataframe(gpr_std)   
     # else:
     y_pred = clf.predict_proba(x)[:,1] # probability=True
+    y_pred
     # y_pred = pd.DataFrame(y_pred)       
     # y_pred = clf.predict(x)
 
@@ -714,6 +765,7 @@ def main():
             cross_val_mod = st.multiselect("Choose Cross Validation Compare Model", 
                                            ["Support Vector", "Decision Tree", "Random Forest", 
                                             "K-Means", "Linear Model", "Gaussian Process", "Gradient Boosting",
+                                            "XGBoosting",
                                             ]
                                            )
             cross_val_num = st.number_input("Choose Cross Validation Number", value=5, min_value=2, max_value=10)
@@ -864,13 +916,22 @@ def main():
         if cross_val_clf == True:
             st.subheader("Cross Validation")
             cross_val_mod = st.multiselect("Choose Cross Validation Compare Model", 
-                                           ["Support Vector", "Decision Tree", "Random Forest", "K-Means", "Linear Model", "Gaussian Process"]
+                                           ["Support Vector", "Decision Tree", "Random Forest", 
+                                            "K-Means", "Gaussian Process",
+                                            "Gradient Boosting", "XGBoosting",
+                                            "Naive Bayes",
+                                            ]
                                            )
+            # cross_val_mod
             cross_val_num = st.number_input("Choose Cross Validation Number", value=5, min_value=2, max_value=10)
             df_cross_val = compare_models_clf(df_x, df_y, model_list=cross_val_mod, cv_splits=cross_val_num)
             st.dataframe(df_cross_val)
 
-        clf_type = st.selectbox("### Choose Classification Method", ["Support Vector", "Decision Tree", "Random Forest", "K-Means", "Navie Bayes", "Gaussian Process"])
+        clf_type = st.selectbox("### Choose Classification Method", ["Support Vector", "Decision Tree", 
+                                                                     "Random Forest", "K-Means", "Navie Bayes", 
+                                                                     "Gaussian Process","Gradient Boosting",
+                                                                     "XGBoosting",
+                                                                     ])
 
         # df_x = df_reg[factor]
         # df_y = df_reg[response]
