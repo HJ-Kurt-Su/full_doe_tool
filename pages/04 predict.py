@@ -19,16 +19,34 @@ import numpy as np
 
 #%% 包成一整個 backend function: 主要資料處理及視覺化儀表板製作
 def backend(uploaded_model, df_raw):
-    # model = load_pickle(uploaded_model)
-    model = pickle.load(uploaded_model)
+    package = load_pickle(uploaded_model)
+    # with open(uploaded_model, "rb") as f:
+    #     loaded_package = pickle.load(f)
+    model = package["model"]
+    para_name = package["features"]
+    # model = loaded_package["model"]    
+    # para_name = loaded_package["features"]
+    # model = pickle.load(uploaded_model)["model"]
     # para_name = model.feature_names_in_
+    # para_name = pickle.load(uploaded_model)["features"]
     # para_name = model.get_feature_names_out()
-    para_name = model.keys()
+    # para_name = model.keys()
     st.markdown("#### Model Parameter")
-    para_name
+    st.dataframe(para_name)
 
-    y_hat = model.predict(df_raw)
-    df_raw["predict"] = y_hat
+    df_input = df_raw[para_name].copy()
+
+    rslt_type =st.radio(
+        "#### Choose Result Type", 
+        ("Probability", "Result Only"))
+    if rslt_type == "Probability":
+        st.markdown("#### Probability Result")
+
+        y_hat = model.predict_proba(df_input)
+        df_raw["predict"] = y_hat[:, 1]
+    else:
+        y_hat = model.predict(df_input)
+        df_raw["predict"] = y_hat
 
     return df_raw
 

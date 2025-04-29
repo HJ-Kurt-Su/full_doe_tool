@@ -391,7 +391,7 @@ def main():
 
         factor_final = factor + factor_2od + factor_inter
 
-        df_factor = pd.Dataframe(factor_final)
+        df_factor = pd.DataFrame(factor_final)
 
         # scaler = StandardScaler()
         # df_ttmp = df_reg[factor]
@@ -413,7 +413,14 @@ def main():
 
         st.plotly_chart(fig, use_container_width=True)
 
-        tools.reg_save(df_result, fig, result, df_factor)
+        feature_name = factor_final
+        reg2 = {
+            "model": result,
+            "features": feature_name,
+            "dataframe": df_result,
+        }
+
+        tools.reg_save(df_result, fig, reg2)
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="reg")
 
@@ -637,7 +644,14 @@ def main():
 
         df_roc_data, fig_roc = tools.clf_score(df_y, y_pred, gui_key= gui_key_main)
 
-        tools.reg_save(df_roc_data, fig_roc, log_model, df_factor)
+        feature_name = factor
+        reg2 = {
+            "model": log_model,
+            "features": feature_name,
+            "dataframe": df_result,
+        }
+
+        tools.reg_save(df_roc_data, fig_roc, reg2)
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="clf")

@@ -3,14 +3,10 @@ import pandas as pd
 
 import numpy as np
 
-# from sklearn.metrics import accuracy_score
-# from sklearn.metrics import confusion_matrix
 
-# from sklearn.metrics import roc_curve, auc
 from sklearn.inspection import permutation_importance
 
 
-# from sklearn.pipeline import make_pipeline
 
 from sklearn.svm import SVC, SVR
 from sklearn.tree import DecisionTreeClassifier, export_text, DecisionTreeRegressor
@@ -38,10 +34,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
 import plotly.express as px
-# from plotly.subplots import make_subplots
-# import plotly.graph_objects as go
 
-# import pickle
 import tools
 
 
@@ -754,7 +747,8 @@ def main():
 
     df_x = df_reg[factor]
     df_y = df_reg[response]
-    df_factor = pd.DataFrame(factor)
+    feature_name = factor
+    # df_factor = pd.DataFrame(factor)
 
     if ana_type == "Regression Method":
 
@@ -832,8 +826,13 @@ def main():
         fig_mod = tools.model_check_figure(df_result=df_result)
         st.plotly_chart(fig_mod, use_container_width=True)
         
-
-        tools.reg_save(df_result, fig_mod, reg, df_factor)
+        # feature_name = factor
+        reg2 = {
+            "model": reg,
+            "features": feature_name,
+            "dataframe": df_result,
+        }
+        tools.reg_save(df_result, fig_mod, reg2)
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="reg")
@@ -957,7 +956,17 @@ def main():
         gui_key_main = {"threshold": "classify_roc_main", "threshold_check": "key_in_main"}
         df_roc_data, fig_roc = tools.clf_score(df_y, y_pred, gui_key=gui_key_main)
 
-        tools.reg_save(df_roc_data, fig_roc, clf, df_factor)
+        df_result=df_x.copy()
+        df_result["yhat"] = y_pred
+
+        
+        clf2 = {
+            "model": clf,
+            "features": feature_name,
+            "dataframe": df_result,
+        }
+
+        tools.reg_save(df_roc_data, fig_roc, clf2)
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="clf")

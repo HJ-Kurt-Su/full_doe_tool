@@ -91,7 +91,7 @@ def download_file(name_label, button_label, file, file_type, gui_key):
     
 
 
-def reg_save(df_result, fig, model, df_factor):
+def reg_save(df_result, fig, model):
         st.markdown("---")
 
         download_file(name_label="Input Result File Name",
@@ -122,12 +122,12 @@ def reg_save(df_result, fig, model, df_factor):
         st.markdown("---")
 
         
-        download_file(name_label="Input Factor File Name",
-                      button_label='Download factor as CSV',
-                      file=df_factor,
-                      file_type="csv",
-                      gui_key="factor_data"
-                      )
+        # download_file(name_label="Input Factor File Name",
+        #               button_label='Download factor as CSV',
+        #               file=df_factor,
+        #               file_type="csv",
+        #               gui_key="factor_data"
+        #               )
 
 
 ## Check Box Tool For Normalize
