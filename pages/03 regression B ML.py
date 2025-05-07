@@ -5,6 +5,8 @@ import numpy as np
 
 
 from sklearn.inspection import permutation_importance
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import PolynomialFeatures
 
 
 
@@ -90,7 +92,11 @@ def compare_models(df_x, df_y, model_list, cv_splits=5):
                             "Huber": HuberRegressor(),
                             "RANSAC": RANSACRegressor(),
                             "TheilSen": TheilSenRegressor(),
+                            "Degree-2": Pipeline([('poly_features', PolynomialFeatures(degree=2)),
+                                                  ('linear_regression', LinearRegression())
+                                                    ]),
                             })
+
         elif i == "Gaussian Process":
             kernel = RBF(length_scale=1.0) + WhiteKernel(noise_level=1)
             kernel2 = RBF(length_scale=1.0)
@@ -472,10 +478,16 @@ def backend(df_x, df_y, reg_type):
         reg = GaussianProcessRegressor(kernel=kernel, random_state=42, n_restarts_optimizer=10)
 
     elif reg_type == "Linear Model":
-        lin_type = st.selectbox("Choose Model", ["OLS", "Huber", "RANSAC", "TheilSen"])
+        lin_type = st.selectbox("Choose Model", ["OLS", "Polynomial","Huber", "RANSAC", "TheilSen"])
         if lin_type == "OLS":
             reg = LinearRegression()
 
+        elif lin_type == "Polynomial":
+            poly_degree = st.number_input("Setup Polynomial Degree", min_value=1, max_value=5, value=2)
+            reg = Pipeline([('poly_features', PolynomialFeatures(degree=poly_degree)),
+                            ('linear_regression', LinearRegression())
+                            ])
+  
         elif lin_type == "Huber":
             reg = HuberRegressor()
 
@@ -514,11 +526,22 @@ def backend(df_x, df_y, reg_type):
     # y_pred = reg.predict(x)
 
     if reg_type == "Linear Model":
-        if lin_type != "RANSAC":
+
+        if lin_type == "Polynomial":
+            # poly_degree = st.number_input("Setup Polynomial Degree", min_value=1, max_value=5, value=2)
+            # reg = Pipeline([('poly_features', PolynomialFeatures(degree=poly_degree)),
+            #                 ('linear_regression', LinearRegression())
+            #                 ])
+            # poly = reg.named_steps['poly_features']
+            # lin = reg.named_steps['linear_regression']
+            # coef = lin.coef_
+            # st.markdown("Polynomial Model Coefficence")
+            # st.dataframe(coef)
+            coef = None
+        elif lin_type != "RANSAC":
             coef = reg.coef_
             st.markdown("Linear Model Coefficence")
             st.dataframe(coef)
-
         else:
             coef = reg.estimator_.coef_
             st.dataframe(coef)
@@ -549,7 +572,7 @@ def backend(df_x, df_y, reg_type):
                   index=list(df_x.columns))
         st.dataframe(df_tree_imps)
     
-    return reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler
+    return reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler, df_imps
 
 
 def backend_clf(df_x, df_y, clf_type):
@@ -771,29 +794,33 @@ def main():
         reg_type = st.selectbox("### Choose Regression Method", 
                                 ["Support Vector", "Decision Tree", "Random Forest", "K-Means",
                                   "Gaussian Process", "Linear Model", "Gradient Boosting",
+                                    "XGBoosting",
                                   ])
-        
-        df_x_opt = tools.nom_checkbox(df_x, key="opt")[0]
-        st_opt = st.button("Start Optimize", key="opt_button")
-        if st_opt == True:
-            df_cv_opt_rslt, best_params, best_model = optimize_model(df_x_opt, df_y, reg_type)
-            st.write("Best Parameters:")
-            st.dataframe(best_params)
-            st.dataframe(df_cv_opt_rslt)
+        ###### opt/pending first############
+
+        # df_x_opt = tools.nom_checkbox(df_x, key="opt")[0]
+        # st_opt = st.button("Start Optimize", key="opt_button")
+        # if st_opt == True:
+        #     df_cv_opt_rslt, best_params, best_model = optimize_model(df_x_opt, df_y, reg_type)
+        #     st.write("Best Parameters:")
+        #     st.dataframe(best_params)
+        #     st.dataframe(df_cv_opt_rslt)
+
+         ###### opt/pending first############
         # df_opt_rslt
         # best_params
         # best_model
         
  
-        
+        reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler, df_imps = backend(df_x, df_y, reg_type)
         if reg_type == "Gaussian Process":
-            reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler = backend(df_x, df_y, reg_type)
+            
             y_min = dict_yscarler["Y_Min"]
             # y_max = dict_yscarler["Y_Max"]    
             y_delta = dict_yscarler["Y_Delta"]
             df_y = (df_y - y_min)/y_delta
-        else:
-            reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler = backend(df_x, df_y, reg_type)
+        # else:
+        #     reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler, df_imps = backend(df_x, df_y, reg_type)
 
         if reg_type == "Decision Tree":
 
@@ -818,6 +845,17 @@ def main():
         st.markdown("               ")
         st.markdown("#### MAPE: %s %%" % round(model_mape_score*100, 1))
 
+        dict_met = {
+            "R2": model_r2_score,
+            "Adj_R2": adj_r_squared,
+            "RMSE": model_rmse_score,
+            "MAPE": model_mape_score,
+        }
+        # dict_met
+        df_perf = pd.DataFrame(dict_met, index=[0])
+
+
+
         st.subheader("Model Performance Figure")
 
         df_result=df_reg.copy()
@@ -827,12 +865,24 @@ def main():
         st.plotly_chart(fig_mod, use_container_width=True)
         
         # feature_name = factor
-        reg2 = {
+        reg_pik = {
             "model": reg,
             "features": feature_name,
-            "dataframe": df_result,
+            "df_nom": df_nom,
+            "df_result": df_result,
+            "fig_perf": fig_mod,
+            "df_perf": df_perf,
+            "df_imps": df_imps,
+        
         }
-        tools.reg_save(df_result, fig_mod, reg2)
+
+        if reg_type == "Gaussian Process":
+            reg_pik["yscarler"] = dict_yscarler
+            reg_pik["gpr_std"] = gpr_std
+            
+
+
+        tools.reg_save(df_result, fig_mod, reg_pik)
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="reg")

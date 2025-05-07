@@ -23,7 +23,12 @@ def backend(uploaded_model, df_raw):
     # with open(uploaded_model, "rb") as f:
     #     loaded_package = pickle.load(f)
     model = package["model"]
+    model_type = type(model).__name__
+    # model_type
+
     para_name = package["features"]
+    df_nom = package["df_nom"]
+     
     # model = loaded_package["model"]    
     # para_name = loaded_package["features"]
     # model = pickle.load(uploaded_model)["model"]
@@ -34,11 +39,23 @@ def backend(uploaded_model, df_raw):
     st.markdown("#### Model Parameter")
     st.dataframe(para_name)
 
-    df_input = df_raw[para_name].copy()
+    
+
+    if df_nom.shape[0] == 2:
+        df_prd_nom = pd.DataFrame()
+        for i in df_nom.columns:
+            # i
+            nom_mean = df_nom[i][0]
+            nom_std = df_nom[i][1]
+
+            df_prd_nom[i] = (df_raw[i] - nom_mean) / nom_std 
+        df_input = df_prd_nom.copy()
+    else:
+        df_input = df_raw[para_name].copy()
 
     rslt_type =st.radio(
         "#### Choose Result Type", 
-        ("Probability", "Result Only"))
+        ("Result Only", "Probability"))
     if rslt_type == "Probability":
         st.markdown("#### Probability Result")
 
@@ -46,8 +63,18 @@ def backend(uploaded_model, df_raw):
         df_raw["predict"] = y_hat[:, 1]
     else:
         y_hat = model.predict(df_input)
-        df_raw["predict"] = y_hat
+        if "GaussianProcessRegressor" in model_type:
+            y_scale = package["yscarler"]
+            y_delta = y_scale["Y_Delta"]
+            y_min = y_scale["Y_Min"]
 
+            # y_hat = y_hat[:, 1]
+            df_raw["predict"] = y_hat * y_delta + y_min
+        else:
+            df_raw["predict"] = y_hat
+
+    # fig_mod = package["fig_perf"]
+    # st.plotly_chart(fig_mod, use_container_width=True)
     return df_raw
 
 
@@ -139,27 +166,27 @@ def main():
         uploaded_model = BytesIO(requests.get(url_model).content)
         # r
 
-    st.markdown("---")
-    st.subheader('Normalization')
-    nom_req = st.checkbox("Need Normalize Data")
-    if nom_req == True:
-        nom_fac = st.file_uploader("請上傳您的 Normalization Factor 檔案", type=["csv", "xlsx"])
-        if nom_fac is not None:
-            url = None
-        else:
-            url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjqLJWGJ46N6GkXkkMCcmthgALF9J28Bm1SGnwYUdmTpTn4Kq8tCzQ-G5FMddTZFF5YANEtPYese-g/pub?gid=0&single=true&output=csv"
-        df_nom = tools.upload_file(nom_fac, url)
+    # st.markdown("---")
+    # st.subheader('Normalization')
+    # nom_req = st.checkbox("Need Normalize Data")
+    # if nom_req == True:
+    #     nom_fac = st.file_uploader("請上傳您的 Normalization Factor 檔案", type=["csv", "xlsx"])
+    #     if nom_fac is not None:
+    #         url = None
+    #     else:
+    #         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQjqLJWGJ46N6GkXkkMCcmthgALF9J28Bm1SGnwYUdmTpTn4Kq8tCzQ-G5FMddTZFF5YANEtPYese-g/pub?gid=0&single=true&output=csv"
+    #     df_nom = tools.upload_file(nom_fac, url)
         
-        st.dataframe(df_nom)
+    #     st.dataframe(df_nom)
 
-        df_prd_nom = pd.DataFrame()
-        for i in df_nom.columns:
-            # i
-            nom_mean = df_nom[i][0]
-            nom_std = df_nom[i][1]
+    #     df_prd_nom = pd.DataFrame()
+    #     for i in df_nom.columns:
+    #         # i
+    #         nom_mean = df_nom[i][0]
+    #         nom_std = df_nom[i][1]
 
-            df_prd_nom[i] = (df_prd[i] - nom_mean) / nom_std 
-        df_prd = df_prd_nom.copy()
+    #         df_prd_nom[i] = (df_prd[i] - nom_mean) / nom_std 
+    #     df_prd = df_prd_nom.copy()
 
     st.markdown("---")
 
