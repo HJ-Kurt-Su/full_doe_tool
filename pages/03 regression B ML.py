@@ -577,6 +577,9 @@ def backend(df_x, df_y, reg_type):
 
 def backend_clf(df_x, df_y, clf_type):
 
+    # gpr_std = None
+    # dict_yscarler = None
+
 
     # if clf_type == "Support Vector" or "Decision Tree" or "K-Means" or "Navie Bayes":
         # clf = make_pipeline(StandardScaler(), SVC(gamma='auto'))
@@ -700,7 +703,7 @@ def backend_clf(df_x, df_y, clf_type):
     # clf.coef_()
 
     
-    return clf, y_pred, nom_choice, df_nom
+    return clf, y_pred, nom_choice, df_nom, df_imps
 
 def main():
 
@@ -985,7 +988,7 @@ def main():
         # df_x = df_reg[factor]
         # df_y = df_reg[response]
         
-        clf, y_pred, nom_choice, df_nom = backend_clf(df_x, df_y, clf_type)
+        clf, y_pred, nom_choice, df_nom, df_imps = backend_clf(df_x, df_y, clf_type)
         # y_pred
 
         if clf_type == "Decision Tree":
@@ -1009,14 +1012,30 @@ def main():
         df_result=df_x.copy()
         df_result["yhat"] = y_pred
 
-        
-        clf2 = {
+
+        clf_pik = {
             "model": clf,
             "features": feature_name,
-            "dataframe": df_result,
+            "df_nom": df_nom,
+            "df_result": df_result,
+            "fig_perf": fig_roc,
+            "df_perf": df_roc_data,
+            "df_imps": df_imps,
+        
         }
 
-        tools.reg_save(df_roc_data, fig_roc, clf2)
+        # if clf_type == "Gaussian Process":
+        #     clf_pik["yscarler"] = dict_yscarler
+        #     clf_pik["gpr_std"] = gpr_std
+            
+        
+        # clf2 = {
+        #     "model": clf,
+        #     "features": feature_name,
+        #     "dataframe": df_result,
+        # }
+
+        tools.reg_save(df_result, fig_roc, clf_pik)
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="clf")
