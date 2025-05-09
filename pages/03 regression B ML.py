@@ -274,7 +274,7 @@ def compare_models_clf(df_x, df_y, model_list, cv_splits=5):
     return df_result
 
 
-def optimize_model(df_x, df_y, reg_type):
+def optimize_model(df_x, df_y, reg_type, cv_time=5):
     """
     Optimize model parameters using GridSearchCV.
 
@@ -291,6 +291,9 @@ def optimize_model(df_x, df_y, reg_type):
     # st_opt = st.button("Start Optimize", key="opt_button")
     # if st_opt == True:
     st.subheader("Optimize Parameters")
+
+    df_y_opt = df_y.copy()
+
     if reg_type == "Support Vector":
         param_grid = {
             'C': [0.01, 0.1, 1, 10, 100],
@@ -304,15 +307,15 @@ def optimize_model(df_x, df_y, reg_type):
     elif reg_type == "Decision Tree":
         param_grid = {
             'max_depth': [2, 4, 6, 8, 10],
-            'min_samples_split': [2, 4, 6, 8],
+            'min_samples_split': [2, 3, 5, 10],
             'min_samples_leaf': [1, 2, 3, 4, 5]
         }
         reg = DecisionTreeRegressor(random_state=42)
 
     elif reg_type == "Random Forest":
         param_grid = {
-            'n_estimators': [10, 50, 100, 200],
-            'max_depth': [2, 5, 10, 20],
+            'n_estimators': [20, 50, 100, 200, 300],
+            'max_depth': [3, 5, 7, 10],
             'min_samples_split': [2, 3, 5, 10],
             'min_samples_leaf': [1, 2, 4, 8]
         }
@@ -345,6 +348,7 @@ def optimize_model(df_x, df_y, reg_type):
 
         y_scaler = MinMaxScaler()
         y = y_scaler.fit_transform(df_y.values.reshape(-1, 1))
+        df_y_opt = pd.DataFrame(y, columns=[df_y.name]).copy()
 
         
 
@@ -358,27 +362,39 @@ def optimize_model(df_x, df_y, reg_type):
 
     elif reg_type == "Gradient Boosting":
         param_grid = {
-            'n_estimators': [50, 100, 200, 300],
-            'learning_rate': [0.01, 0.05, 0.1, 0.2],
+            'n_estimators': [20, 50, 100, 200, 300],
             'max_depth': [3, 5, 7, 10],
+            'learning_rate': [0.01, 0.05, 0.1, 0.2],
             'min_samples_split': [2, 5, 10],
             'min_samples_leaf': [1, 2, 4]
         }
         reg = GradientBoostingRegressor(random_state=42)
+    
+    elif reg_type == "XGBoosting":
+        param_grid = {
+            'n_estimators': [20, 50, 100, 200, 300],
+            'max_depth': [3, 5, 7, 10],
+            'learning_rate': [0.01, 0.05, 0.1, 0.2],
+            'subsample': [0.8, 1.0],
+            'colsample_bytree': [0.8, 1.0],
+        }
+        reg = XGBRegressor(random_state=42)
 
-    if reg_type == "Gaussian Process":
-        # Use Gaussian Process with MinMaxScaler
-        # y_scaler = MinMaxScaler()
-        # y = y_scaler.fit_transform(df_y.values.reshape(-1, 1))
-        df_y_opt = pd.DataFrame(y, columns=[df_y.name]).copy()
-    else:
-        df_y_opt = df_y.copy()
+
+    ## Switch y to MinMaxScaler for Gaussian Process Only.
+    # if reg_type == "Gaussian Process":
+    #     # Use Gaussian Process with MinMaxScaler
+    #     # y_scaler = MinMaxScaler()
+    #     # y = y_scaler.fit_transform(df_y.values.reshape(-1, 1))
+    #     df_y_opt = pd.DataFrame(y, columns=[df_y.name]).copy()
+    # else:
+    #     df_y_opt = df_y.copy()
             
     # grid_search = GridSearchCV(reg, param_grid, cv=5)
     grid_search = GridSearchCV(
     estimator=reg,
     param_grid=param_grid,
-    cv=5,  # 5 折交叉驗證
+    cv=cv_time,  
     # scoring=make_scorer(r2_score),  # 使用 R² 作為評估指標
     scoring="r2",  # 使用 R² 作為評估指標
     verbose=1,
@@ -400,19 +416,17 @@ def optimize_model(df_x, df_y, reg_type):
     df_imps = pd.DataFrame(imps_mean,)
                 #   index=list(df_x.columns))
                 #   columns=("Imp_Mean", "Imp_Std"))
-    st.subheader("Feature Importance")
-    # imps_mean
-    st.dataframe(df_imps)
+    # st.subheader("Feature Importance")
+    # # imps_mean
+    # st.dataframe(df_imps)
 
-
-
-    return df_cv_opt_rslt, best_params, best_model
+    return df_cv_opt_rslt, best_params, best_model, df_imps
    
 
-def backend(df_x, df_y, reg_type):
+def backend(df_x, df_y, reg_type, factor):
 
     st.markdown("---")
-    x, nom_choice, df_nom = tools.nom_checkbox(df_x, key="nom_in_reg")
+    # x, nom_choice, df_nom = tools.nom_checkbox(df_x, key="nom_in_reg")
   
 
     st.markdown("---")
@@ -457,12 +471,7 @@ def backend(df_x, df_y, reg_type):
         elif gpr_ker == "rbf+dotproduct":
             kernel = RBF(length_scale=1.0) + DotProduct(sigma_0=1.0)
         
-        dict_yscarler = {
-            "Y_Max": df_y.max(),
-            "Y_Min": df_y.min(),
-            "Y_Delta": df_y.max() - df_y.min(),
-            # "Y4": MinMaxScaler(feature_range=(0, 1)),
-        }
+
         # dict_yscarler
         # y_name = df_y.name
         # y_name
@@ -511,14 +520,14 @@ def backend(df_x, df_y, reg_type):
 
     # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
 
-    reg.fit(x, df_y)
+    reg.fit(df_x, df_y)
     if reg_type == "Gaussian Process":
-        y_pred, gpr_std = reg.predict(x, return_std=True)
+        y_pred, gpr_std = reg.predict(df_x, return_std=True)
         st.write("GPR Std:")  
         st.dataframe(gpr_std)
 
     else:
-        y_pred = reg.predict(x)
+        y_pred = reg.predict(df_x)
         
         # y_pred = y_scaler.inverse_transform(y_pred.reshape(-1, 1))
         # y_pred = pd.DataFrame(y_pred, columns=[df_y.name])
@@ -551,7 +560,7 @@ def backend(df_x, df_y, reg_type):
     if reg_type == "Decision Tree":
         feature_importances = reg.feature_importances_
 
-    imps = permutation_importance(reg, x, df_y)
+    imps = permutation_importance(reg, df_x, df_y)
     imps_mean = imps.importances_mean
     # imps_std = imps.importances_std
     # imps_mean
@@ -559,7 +568,7 @@ def backend(df_x, df_y, reg_type):
     # df_x.columns
     # imps_mean
     df_imps = pd.DataFrame(imps_mean,
-                  index=list(df_x.columns))
+                  index=factor)
                 #   columns=("Imp_Mean", "Imp_Std"))
     st.subheader("Feature Importance")
     # imps_mean
@@ -569,10 +578,10 @@ def backend(df_x, df_y, reg_type):
             
         st.subheader("Tree Native Feature Importance")
         df_tree_imps = pd.Series(feature_importances,
-                  index=list(df_x.columns))
+                  index=factor)
         st.dataframe(df_tree_imps)
     
-    return reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler, df_imps
+    return reg, y_pred, gpr_std, df_imps
 
 
 def backend_clf(df_x, df_y, clf_type):
@@ -774,7 +783,15 @@ def main():
     df_x = df_reg[factor]
     df_y = df_reg[response]
     feature_name = factor
+    dict_yscarler = {
+        "Y_Max": df_y.max(),
+        "Y_Min": df_y.min(),
+        "Y_Delta": df_y.max() - df_y.min(),
+        # "Y4": MinMaxScaler(feature_range=(0, 1)),
+    }    
     # df_factor = pd.DataFrame(factor)
+
+    
 
     if ana_type == "Regression Method":
 
@@ -799,29 +816,59 @@ def main():
                                   "Gaussian Process", "Linear Model", "Gradient Boosting",
                                     "XGBoosting",
                                   ])
-        ###### opt/pending first############
+        df_x_reg, df_nom = tools.nom_checkbox(df_x, key="nom_in_reg")
+        ##### opt/pending first############
 
-        # df_x_opt = tools.nom_checkbox(df_x, key="opt")[0]
-        # st_opt = st.button("Start Optimize", key="opt_button")
-        # if st_opt == True:
-        #     df_cv_opt_rslt, best_params, best_model = optimize_model(df_x_opt, df_y, reg_type)
-        #     st.write("Best Parameters:")
-        #     st.dataframe(best_params)
-        #     st.dataframe(df_cv_opt_rslt)
 
-         ###### opt/pending first############
-        # df_opt_rslt
-        # best_params
-        # best_model
         
- 
-        reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler, df_imps = backend(df_x, df_y, reg_type)
+        reg_select = st.select_slider("Choose Model Method", ["Manual Tune Model", "Use Optimize Model"], key="reg_select")
+        if reg_select == "Use Optimize Model":
+
+            df_x_opt = df_x_reg.copy()
+            cv_time = st.number_input("Choose Optimize Trial Times", value=5, min_value=2, max_value=10)
+            st_opt = st.button("Start Optimize", key="opt_button")
+            if st_opt == True:
+                df_cv_opt_rslt, best_params, best_model, df_imps_raw = optimize_model(df_x_opt, df_y, reg_type, cv_time=cv_time)
+                df_imps = df_imps_raw.copy()
+                # df_imps_nm["Feature"] = factor
+                df_imps.insert(0, "Feature", factor)
+                st.write("Best Parameters:")
+                st.dataframe(best_params)
+                st.markdown("-----------------")
+
+                st.write("Feature Importance:")
+                st.dataframe(df_imps)
+                st.markdown("-----------------")
+
+                st.write("Opt Overall Result:")
+                st.dataframe(df_cv_opt_rslt)
+                st.markdown("-----------------")
+
+         ##### opt/pending first############
+        # df_cv_opt_rslt
+        # best_params
+            best_model
+            reg = best_model
+            if reg_type == "Gaussian Process":
+                y_pred, gpr_std = reg.predict(df_x_reg, return_std=True)
+                st.write("GPR Std:")  
+                st.dataframe(gpr_std)
+            else:
+                y_pred = reg.predict(df_x_reg)
+            # st.write("Best Parameters:")
+            # st.dataframe(best_params)
+            # st.markdown("-----------------")
+
+        elif reg_select == "Manual Tune Model":
+
+            reg, y_pred, gpr_std, df_imps = backend(df_x_reg, df_y, reg_type, factor)
+        
         if reg_type == "Gaussian Process":
             
             y_min = dict_yscarler["Y_Min"]
-            # y_max = dict_yscarler["Y_Max"]    
             y_delta = dict_yscarler["Y_Delta"]
             df_y = (df_y - y_min)/y_delta
+
         # else:
         #     reg, y_pred, nom_choice, df_nom, gpr_std, dict_yscarler, df_imps = backend(df_x, df_y, reg_type)
 
@@ -862,8 +909,11 @@ def main():
         st.subheader("Model Performance Figure")
 
         df_result=df_reg.copy()
-        df_result["yhat"] = y_pred
-        df_result["resid"] = df_y - y_pred
+        if reg_type == "Gaussian Process":
+            df_result["yhat"] = y_pred * y_delta + y_min
+        else:
+            df_result["yhat"] = y_pred
+        df_result["resid"] = df_reg[response] - df_result["yhat"]
         fig_mod = tools.model_check_figure(df_result=df_result)
         st.plotly_chart(fig_mod, use_container_width=True)
         

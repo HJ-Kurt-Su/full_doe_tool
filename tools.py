@@ -162,7 +162,7 @@ def nom_checkbox(df_x, key=None):
     else:
         x = df_x
 
-    return x, nom_choice, df_nom
+    return x, df_nom
 
 ## Model performance tool
 

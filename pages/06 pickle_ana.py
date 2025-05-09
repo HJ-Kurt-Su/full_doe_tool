@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 import requests
 from statsmodels.iolib.smpickle import load_pickle
-import pickle
+# import pickle
 # import datetime
 from io import BytesIO
 import tools
@@ -17,16 +17,58 @@ def backend(uploaded_model):
         st.write(package["features"])
     elif show_item == "df_nom":
         st.write(package["df_nom"])
+        tools.download_file(
+            name_label="Input Result File Name",
+            button_label='Download normalized result as CSV',
+            file=pd.DataFrame(package["df_nom"]),
+            file_type="csv",
+            gui_key="nom_data"
+            )
     elif show_item == "df_result":
         st.write(package["df_result"])
+        tools.download_file(
+            name_label="Input Result File Name",
+            button_label='Download overall result as CSV',
+            file=pd.DataFrame(package["df_result"]),
+            file_type="csv",
+            gui_key="rslt_data"
+            )
     elif show_item == "df_imps":
         st.write(package["df_imps"])
+        tools.download_file(
+            name_label="Input Result File Name",
+            button_label='Download importance result as CSV',
+            file=pd.DataFrame(package["df_imps"]),
+            file_type="csv",
+            gui_key="imps_data"
+            )
     elif show_item == "df_perf":
         st.write(package["df_perf"])
+        tools.download_file(
+            name_label="Input Result File Name",
+            button_label='Download performance result as CSV',
+            file=pd.DataFrame(package["df_perf"]),
+            file_type="csv",
+            gui_key="perf_data"
+            )
     elif show_item == "fig_perf":
         st.plotly_chart(package["fig_perf"], use_container_width=True)
+        tools.download_file(
+            name_label="Input Result File Name",
+            button_label='Download performance result as HTML',
+            file=package["fig_perf"],
+            file_type="html",
+            gui_key="figure"
+            )
     elif show_item == "yscarler":
         st.write(package["yscarler"])
+        tools.download_file(
+            name_label="Input Result File Name",
+            button_label='Download performance result as CSV',
+            file=pd.DataFrame(package["yscarler"]),
+            file_type="csv",
+            gui_key="yscale_data"
+            )
     else:
         st.markdown("所選項目尚未建立")
 
