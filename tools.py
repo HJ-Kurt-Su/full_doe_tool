@@ -94,12 +94,13 @@ def download_file(name_label, button_label, file, file_type, gui_key):
 def reg_save(df_result, fig, model):
         st.markdown("---")
 
-        download_file(name_label="Input Result File Name",
-                      button_label='Download statistics result as CSV',
-                      file=df_result,
-                      file_type="csv",
-                      gui_key="result_data"
+        download_file(name_label="Input Model File Name",
+                      button_label='Download model as PICKLE',
+                      file=model,
+                      file_type="pickle",
+                      gui_key="model"
                       )
+
 
         st.markdown("---")
 
@@ -112,11 +113,12 @@ def reg_save(df_result, fig, model):
         
         st.markdown("---")
 
-        download_file(name_label="Input Model File Name",
-                      button_label='Download model as PICKLE',
-                      file=model,
-                      file_type="pickle",
-                      gui_key="model"
+
+        download_file(name_label="Input Result File Name",
+                      button_label='Download statistics result as CSV',
+                      file=df_result,
+                      file_type="csv",
+                      gui_key="result_data"
                       )
         
         st.markdown("---")
