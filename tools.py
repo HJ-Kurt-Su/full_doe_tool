@@ -66,6 +66,27 @@ def convert_fig(fig):
     return html_bytes
 
 
+# def convert_img(fig, file_format="png"):
+#     """
+#     Convert a Plotly figure to an image file (JPG or PNG).
+
+#     Parameters:
+#         fig (plotly.graph_objects.Figure): The Plotly figure to convert.
+#         file_format (str): The desired image format ("png" or "jpg").
+
+#     Returns:
+#         bytes: The image file in binary format.
+#     """
+#     # 檢查格式是否正確
+#     if file_format not in ["png", "jpg"]:
+#         raise ValueError("Invalid file format. Use 'png' or 'jpg'.")
+
+#     # 將圖表轉換為圖像
+#     image_bytes = fig.to_image(format=file_format)
+
+#     return image_bytes
+
+
 def download_file(name_label, button_label, file, file_type, gui_key):
     date = str(datetime.datetime.now()).split(" ")[0]
     if file_type == "csv":
@@ -76,7 +97,11 @@ def download_file(name_label, button_label, file, file_type, gui_key):
         mime_text = 'text/html'
     elif file_type == "pickle":
         file = pickle.dumps(file)
-        mime_text = ""
+        mime_text = "application/octet-stream"
+    # elif file_type in ["png", "jpg"]:
+    #     file = convert_img(file, file_format=file_type)
+    #     # file = file.getvalue()  
+    #     mime_text = f"image/{file_type}"
 
     # file_name_col, button_col = st.columns(2)
     result_file = date + "_result"
@@ -94,12 +119,13 @@ def download_file(name_label, button_label, file, file_type, gui_key):
 def reg_save(df_result, fig, model):
         st.markdown("---")
 
-        download_file(name_label="Input Result File Name",
-                      button_label='Download statistics result as CSV',
-                      file=df_result,
-                      file_type="csv",
-                      gui_key="result_data"
+        download_file(name_label="Input Model File Name",
+                      button_label='Download model as PICKLE',
+                      file=model,
+                      file_type="pickle",
+                      gui_key="model"
                       )
+
 
         st.markdown("---")
 
@@ -112,11 +138,12 @@ def reg_save(df_result, fig, model):
         
         st.markdown("---")
 
-        download_file(name_label="Input Model File Name",
-                      button_label='Download model as PICKLE',
-                      file=model,
-                      file_type="pickle",
-                      gui_key="model"
+
+        download_file(name_label="Input Result File Name",
+                      button_label='Download statistics result as CSV',
+                      file=df_result,
+                      file_type="csv",
+                      gui_key="result_data"
                       )
         
         st.markdown("---")
@@ -162,7 +189,7 @@ def nom_checkbox(df_x, key=None):
     else:
         x = df_x
 
-    return x, nom_choice, df_nom
+    return x, df_nom
 
 ## Model performance tool
 
