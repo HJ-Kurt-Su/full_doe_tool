@@ -414,13 +414,15 @@ def main():
         st.plotly_chart(fig, use_container_width=True)
 
         feature_name = factor_final
-        reg2 = {
+        reg_pkl = {
             "model": result,
             "features": feature_name,
-            "dataframe": df_result,
+            "df_result": df_result,
+            "reg_summary": result.summary(),
+
         }
 
-        tools.reg_save(df_result, fig, reg2)
+        tools.reg_save(df_result, fig, reg_pkl)
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="reg")
 
