@@ -415,7 +415,9 @@ def optimize_model(df_x, df_y, reg_type, cv_time=5):
     # imps_std
     # df_x.columns
     # imps_mean
-    df_imps = pd.DataFrame(imps_mean,)
+    df_imps = pd.DataFrame(imps_mean,
+                           columns=["value"]
+                           )
                 #   index=list(df_x.columns))
                 #   columns=("Imp_Mean", "Imp_Std"))
     # st.subheader("Feature Importance")
@@ -673,17 +675,20 @@ def backend(df_x, df_y, reg_type, factor):
 
     imps = permutation_importance(reg, df_x, df_y)
     imps_mean = imps.importances_mean
-    # imps_std = imps.importances_std
+    imps_std = imps.importances_std
     # imps_mean
     # imps_std
     # df_x.columns
     # imps_mean
-    df_imps = pd.DataFrame(imps_mean,
-                  index=factor)
+    df_imps = pd.DataFrame(imps_mean, 
+                           columns=["value"],
+                           index=factor,
+                  )
+    df_imps.index.name = "factor"  # 設定索引名稱為 "factor"
                 #   columns=("Imp_Mean", "Imp_Std"))
-    st.subheader("Feature Importance")
+    # st.subheader("Feature Importance")
     # imps_mean
-    st.dataframe(df_imps)
+    # st.dataframe(df_imps)
 
     if reg_type == "Decision Tree":
             
@@ -695,7 +700,7 @@ def backend(df_x, df_y, reg_type, factor):
     return reg, y_pred, gpr_std, df_imps
 
 
-def backend_clf(df_x, df_y, clf_type):
+def backend_clf(df_x, df_y, clf_type, factor):
 
     # gpr_std = None
     # dict_yscarler = None
@@ -711,7 +716,7 @@ def backend_clf(df_x, df_y, clf_type):
     #     st.dataframe(x)
     # else:
     #     x = df_x
-    x, nom_choice, df_nom = tools.nom_checkbox(df_x)
+    # x, nom_choice, df_nom = tools.nom_checkbox(df_x)
 
     if clf_type == "Support Vector":
         svc_ker = st.selectbox("Choose Kernal", ["linear", "rbf", "poly", "sigmoid"])
@@ -760,13 +765,13 @@ def backend_clf(df_x, df_y, clf_type):
         clf = XGBClassifier(objective="binary:logistic", n_estimators=tree_num, max_depth=max_tree_layer, learning_rate=lrn_rate,  random_state=42)
 
     # clf = make_pipeline(StandardScaler(), DecisionTreeClassifier())
-    clf.fit(x, df_y)
+    clf.fit(df_x, df_y)
     # if clf_type == "Gaussian Process":
     #     y_pred, gpr_std = clf.predict(x, return_std=True)
     #     st.write("GPR Std:")
     #     st.dataframe(gpr_std)   
     # else:
-    y_pred = clf.predict_proba(x)[:,1] # probability=True
+    y_pred = clf.predict_proba(df_x)[:,1] # probability=True
     y_pred
     # y_pred = pd.DataFrame(y_pred)       
     # y_pred = clf.predict(x)
@@ -797,19 +802,24 @@ def backend_clf(df_x, df_y, clf_type):
         # centers = clf.cluster_centers_
         # centers
 
-    imps = permutation_importance(clf, x, df_y)
+    imps = permutation_importance(clf, df_x, df_y)
     imps_mean = imps.importances_mean
     # imps_std = imps.importances_std
     # imps_mean
     # imps_std
     # df_x.columns
     # imps_mean
-    df_imps = pd.DataFrame(imps_mean,
-                  index=list(df_x.columns))
+    df_imps = pd.DataFrame(imps_mean, 
+                           columns=["value"],
+                           index=factor,
+                  )
+    df_imps.index.name = "factor"  # 設定索引名稱為 "factor"
+    # df_imps = pd.DataFrame(imps_mean,
+    #               index=list(df_x.columns))
                 #   columns=("Imp_Mean", "Imp_Std"))
-    st.subheader("Feature Importance")
+    
     # imps_mean
-    st.dataframe(df_imps)
+    # st.dataframe(df_imps)
     # print(imps.importances_mean)
     if clf_type == "Decision Tree":
             
@@ -823,7 +833,7 @@ def backend_clf(df_x, df_y, clf_type):
     # clf.coef_()
 
     
-    return clf, y_pred, nom_choice, df_nom, df_imps
+    return clf, y_pred, df_imps
 
 def main():
 
@@ -948,15 +958,17 @@ def main():
             # if st_opt == True:
                 df_cv_opt_rslt, best_params, best_model, df_imps_raw = optimize_model(df_x_opt, df_y, reg_type, cv_time=cv_time)
                 df_imps = df_imps_raw.copy()
-                # df_imps_nm["Feature"] = factor
-                df_imps.insert(0, "Feature", factor)
+                # df_imps_nm["feature"] = factor
+                df_imps.index = factor  # 將 factor 設定為索引
+                df_imps.index.name = "factor"  # 設定索引名稱為 "factor"
+                # df_imps.insert(0, "factor", factor)
                 st.write("Best Parameters:")
                 st.dataframe(best_params)
                 st.markdown("-----------------")
 
-                st.write("Feature Importance:")
+                # st.write("Feature Importance:")
                 st.dataframe(df_imps)
-                st.markdown("-----------------")
+                # st.markdown("-----------------")
 
                 st.write("Opt Overall Result:")
                 st.dataframe(df_cv_opt_rslt)
@@ -1007,6 +1019,15 @@ def main():
 
         model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series = tools.backend_pefmce(df_y, y_pred, factor_number)
 
+
+        st.subheader("Feature Importance")
+        df_imps = df_imps.reset_index()  # 將 index 重置為普通列（如果 index 是 factor）
+        # df_imps.columns = ["factor", "value"]
+        df_imps = df_imps.sort_values(by="value", ascending=False)  # 根據 value 由大到小排序
+
+        vline = df_imps["value"].quantile(0.25) # 第一四分位數 (25%)
+        st.dataframe(df_imps)
+        st.markdown("               ")
         st.markdown("#### $R^2$: %s" % round(model_r2_score, 3))
         st.markdown("               ")
         st.markdown("#### Adjusted $R^2$: %s" % round(adj_r_squared, 3))
@@ -1026,7 +1047,10 @@ def main():
 
 
 
+
+
         st.subheader("Model Performance Figure")
+
 
         df_result=df_reg.copy()
         if reg_type == "Gaussian Process":
@@ -1034,11 +1058,11 @@ def main():
         else:
             df_result["yhat"] = y_pred
         df_result["resid"] = df_reg[response] - df_result["yhat"]
-        fig_mod = tools.model_check_figure(df_result=df_result)
+        fig_mod = tools.model_check_figure(df_result=df_result, df_pareto=df_imps, t_val=vline)
         st.plotly_chart(fig_mod, use_container_width=True)
         
         # feature_name = factor
-        reg_pik = {
+        reg_pkl = {
             "model": reg,
             "features": feature_name,
             "df_nom": df_nom,
@@ -1050,12 +1074,12 @@ def main():
         }
 
         if reg_type == "Gaussian Process":
-            reg_pik["yscarler"] = dict_yscarler
-            reg_pik["gpr_std"] = gpr_std
+            reg_pkl["df_yscale"] = dict_yscarler
+            reg_pkl["df_gpr_std"] = gpr_std
             
 
 
-        tools.reg_save(df_result, fig_mod, reg_pik)
+        tools.reg_save(df_result, fig_mod, reg_pkl)
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="reg")
@@ -1213,7 +1237,7 @@ def main():
 
         elif clf_select == "Manual Tune Model":
         
-            clf, y_pred, nom_choice, df_nom, df_imps = backend_clf(df_x_clf, df_y, clf_type)
+            clf, y_pred, df_imps = backend_clf(df_x_clf, df_y, clf_type, factor)
         # y_pred
 
         if clf_type == "Decision Tree":
@@ -1228,7 +1252,13 @@ def main():
 
             # st.plotly_chart(g, use_container_width=True)
 
+        st.subheader("Feature Importance")
+        df_imps = df_imps.reset_index()  # 將 index 重置為普通列（如果 index 是 factor）
+        # df_imps.columns = ["factor", "value"]
+        df_imps = df_imps.sort_values(by="value", ascending=False)  # 根據 value 由大到小排序
 
+        vline = df_imps["value"].quantile(0.25) # 第一四分位數 (25%)
+        st.dataframe(df_imps)
 
         # df_roc_data, fig_roc = clf_score_sklearn(df_y, y_pred)
         gui_key_main = {"threshold": "classify_roc_main", "threshold_check": "key_in_main"}
@@ -1238,7 +1268,7 @@ def main():
         df_result["yhat"] = y_pred
 
 
-        clf_pik = {
+        clf_pkl = {
             "model": clf,
             "features": feature_name,
             "df_nom": df_nom,
@@ -1250,7 +1280,7 @@ def main():
         }
 
 
-        tools.reg_save(df_result, fig_roc, clf_pik)
+        tools.reg_save(df_result, fig_roc, clf_pkl)
 
 
         predict_performance = st.checkbox("Predict New Data & Check Performance", key="clf")

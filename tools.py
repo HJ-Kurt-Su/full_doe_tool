@@ -270,7 +270,9 @@ def clf_score(y, y_predict, gui_key=None):
         else:
 
             # st.dataframe(threshold)
+        
             threshold_cut = st.selectbox("Choose Threshold", threshold, key=gui_key["threshold"])
+            st.subheader("Bug exist, under fix. Please select key-in")
             st.write("Threshold by select: %s" % threshold_cut)
 
         # y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
@@ -360,7 +362,7 @@ def model_check_figure(df_result, df_pareto=None, t_val=None):
             "yhat-residual-plot (random better)", 
             "residual-histogram-plot (normal distribution better)", 
             "redidual-sequence-plot (random better)", 
-            "pareto-plot (red line as criteria)"
+            "feature-importance (red line as ref. criteria)"
         )
     )
 
@@ -394,27 +396,28 @@ def model_check_figure(df_result, df_pareto=None, t_val=None):
         row=2, col=1
     )
 
-    if df_pareto:
+    # if df_pareto:
     # Add Pareto plot
-        fig.add_trace(
-            go.Bar(
-                x=df_pareto["t-value"], 
-                y=df_pareto["factor"], 
-                orientation='h', 
-                width=0.8,
-                marker=dict(color=color_def)
-            ),
-            row=2, col=2
-        )
-        
-        # Add vertical line to Pareto plot
-        fig.add_vline(
-            x=t_val, 
-            line_width=2, 
-            line_dash='dash', 
-            line_color='red',
-            row=2, col=2
-        )
+    df_pareto = df_pareto.sort_values(by="value", ascending=True)
+    fig.add_trace(
+        go.Bar(
+            x=df_pareto["value"], 
+            y=df_pareto["factor"], 
+            orientation='h', 
+            width=0.8,
+            marker=dict(color=color_def)
+        ),
+        row=2, col=2
+    )
+    
+    # Add vertical line to Pareto plot
+    fig.add_vline(
+        x=t_val, 
+        line_width=2, 
+        line_dash='dash', 
+        line_color='red',
+        row=2, col=2
+    )
 
     # Update x and y axis labels
     fig.update_xaxes(title_text="Y-hat", row=1, col=1)
@@ -426,9 +429,9 @@ def model_check_figure(df_result, df_pareto=None, t_val=None):
     fig.update_xaxes(title_text="Sequence", row=2, col=1)
     fig.update_yaxes(title_text="Residual", row=2, col=1)
 
-    if df_pareto:
-        fig.update_xaxes(title_text="Factor Importance", row=2, col=2)
-        fig.update_yaxes(title_text="Factor", row=2, col=2)
+    # if df_pareto:
+    fig.update_xaxes(title_text="Factor Importance", row=2, col=2)
+    fig.update_yaxes(title_text="Factor", row=2, col=2)
 
     # Update overall layout
     fig.update_layout(
