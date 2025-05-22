@@ -62,6 +62,7 @@ def backend(uploaded_model, df_raw):
         y_hat = model.predict_proba(df_input)
         df_raw["predict"] = y_hat[:, 1]
     else:
+        # st.dataframe(df_input)
         y_hat = model.predict(df_input)
         if "GaussianProcessRegressor" in model_type:
             y_scale = package["yscarler"]

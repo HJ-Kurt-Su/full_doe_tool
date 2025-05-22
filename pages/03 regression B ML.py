@@ -1202,7 +1202,7 @@ def main():
              # 根據 session_state 的狀態執行操作
             if st.session_state.optimize_triggered:
 
-                df_cv_opt_rslt, best_params, best_model, df_imps_raw = optimize_model(df_x_opt, df_y, clf_type, cv_time=cv_time)
+                df_cv_opt_rslt, best_params, best_model, df_imps_raw = optimize_model_clf(df_x_opt, df_y, clf_type, cv_time=cv_time)
                 df_imps = df_imps_raw.copy()
                 # df_imps_nm["Feature"] = factor
                 df_imps.insert(0, "Feature", factor)
@@ -1230,7 +1230,7 @@ def main():
             #     st.write("GPR Std:")  
             #     st.dataframe(gpr_std)
             # else:
-            y_pred = clf.predict(df_x_clf)
+            y_pred = clf.predict_proba(df_x_clf)[:,1] # probability=True
             # st.write("Best Parameters:")
             # st.dataframe(best_params)
             # st.markdown("-----------------")
