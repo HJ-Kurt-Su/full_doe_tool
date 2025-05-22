@@ -440,6 +440,7 @@ def optimize_model_clf(df_x, df_y, clf_type, cv_time=5):
         DataFrame: Optimized parameters and scores.
     """
     st.subheader("Optimize Parameters")
+    df_y_opt = df_y.copy()
 
     if clf_type == "Support Vector":
         param_grid = {
@@ -532,8 +533,19 @@ def optimize_model_clf(df_x, df_y, clf_type, cv_time=5):
     df_cv_opt_rslt = pd.DataFrame(cv_results)
     best_params = grid_search.best_params_
     best_model = grid_search.best_estimator_
+    
+    imps = permutation_importance(best_model, df_x, df_y_opt)
+    imps_mean = imps.importances_mean
+    # imps_std = imps.importances_std
+    # imps_mean
+    # imps_std
+    # df_x.columns
+    # imps_mean
+    df_imps = pd.DataFrame(imps_mean,
+                           columns=["value"]
+                           )
 
-    return df_cv_opt_rslt, best_params, best_model
+    return df_cv_opt_rslt, best_params, best_model, df_imps
 
 
 def backend(df_x, df_y, reg_type, factor):
