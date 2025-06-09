@@ -65,7 +65,7 @@ def backend(uploaded_model, df_raw):
         # st.dataframe(df_input)
         y_hat = model.predict(df_input)
         if "GaussianProcessRegressor" in model_type:
-            y_scale = package["yscarler"]
+            y_scale = package["df_yscale"]
             y_delta = y_scale["Y_Delta"]
             y_min = y_scale["Y_Min"]
 
