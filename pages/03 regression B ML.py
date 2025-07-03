@@ -31,6 +31,8 @@ from sklearn.linear_model import (
 )
 
 from xgboost import XGBRegressor, XGBClassifier
+from sklearn.cluster import KMeans, DBSCAN, SpectralClustering, AgglomerativeClustering
+
 from sklearn.model_selection import GridSearchCV, cross_val_score, StratifiedKFold, KFold
 
 from sklearn.metrics import make_scorer, r2_score
@@ -48,6 +50,62 @@ import tools
 # color_sequence = ["#65BFA1", "#A4D6C1", "#D5EBE1", "#EBF5EC", "#00A0DF", "#81CDE4", "#BFD9E2"]
 color_sequence = px.colors.qualitative.Pastel
 template = "simple_white"
+
+
+
+def run_clustering(df_x, method, n_clusters=3, eps=0.5, min_samples=5):
+    """
+    執行分群演算法並回傳分群標籤
+    """
+    if method == "KMeans":
+        model = KMeans(n_clusters=n_clusters, random_state=42)
+        labels = model.fit_predict(df_x)
+        sse = []
+        max_k = 15
+        for k in range(1, max_k):
+            kmeans = KMeans(n_clusters=k, random_state=42)
+            kmeans.fit(df_x)
+            sse.append(kmeans.inertia_)
+
+        # 轉換為 DataFrame 供 plotly 使用   
+        df_elbow = pd.DataFrame({'K': range(1, max_k), 'SSE': sse})
+        df_elbow["SSE_ratio"] = df_elbow["SSE"].pct_change()
+        df_elbow["SSE_div_first"] = df_elbow["SSE"] / df_elbow["SSE"].iloc[0]
+        df_elbow
+
+        # 繪製手肘圖
+        fig = px.line(df_elbow, x='K', y='SSE', markers=True,
+                    title='Elbow Method for Optimal K',
+                    labels={'SSE': 'Sum of Squared Errors'},
+                    template='plotly_white')
+        st.plotly_chart(fig, use_container_width=True)
+        
+    elif method == "DBSCAN":
+        model = DBSCAN(eps=eps, min_samples=min_samples)
+        labels = model.fit_predict(df_x)
+    elif method == "Spectral Clustering":
+        model = SpectralClustering(n_clusters=n_clusters, assign_labels='kmeans', random_state=42)
+        labels = model.fit_predict(df_x)
+    elif method == "Agglomerative Clustering":
+        model = AgglomerativeClustering(n_clusters=n_clusters)
+        labels = model.fit_predict(df_x)
+    else:
+        labels = np.zeros(df_x.shape[0])
+    return labels
+
+def plot_clusters(df_x, labels):
+    """
+    使用 Plotly 可視化分群結果（僅支援2D/3D）
+    """
+    df_vis = df_x.copy()
+    df_vis["cluster"] = labels.astype(str)
+    if df_x.shape[1] >= 3:
+        fig = px.scatter_3d(df_vis, x=df_x.columns[0], y=df_x.columns[1], z=df_x.columns[2], color="cluster", symbol="cluster")
+    elif df_x.shape[1] == 2:
+        fig = px.scatter(df_vis, x=df_x.columns[0], y=df_x.columns[1], color="cluster", symbol="cluster")
+    else:
+        fig = px.scatter(df_vis, x=df_x.columns[0], y=[0]*len(df_x), color="cluster", symbol="cluster")
+    return fig
 
 
 def compare_models(df_x, df_y, model_list, cv_splits=5):
@@ -427,7 +485,7 @@ def optimize_model(df_x, df_y, reg_type, cv_time=5):
     return df_cv_opt_rslt, best_params, best_model, df_imps
 
 
-def optimize_model_clf(df_x, df_y, clf_type, cv_time=5):
+def optimize_model_clf(df_x, df_y, clf_type, cv_time=5, sub_nb=None):
     """
     Optimize model parameters using GridSearchCV for classification.
 
@@ -516,6 +574,33 @@ def optimize_model_clf(df_x, df_y, clf_type, cv_time=5):
             'colsample_bytree': [0.8, 1.0]
         }
         clf = XGBClassifier(random_state=42)
+
+    elif clf_type == "Naive Bayes":
+        # st.write(sub_nb)
+        # sub_nb
+        # sub_nb = st.selectbox("Choose Naive Bayes Type", ["GaussianNB", "BernoulliNB", "MultinomialNB"])
+        if sub_nb == "Gaussian":
+            param_grid = {
+                'var_smoothing': [1e-9, 1e-8, 1e-7, 1e-6]
+            }
+            clf = GaussianNB()
+            # st.write(clf)
+        elif sub_nb == "Bernoulli":
+            param_grid = {
+            'alpha': [0.1, 0.5, 1.0, 2.0],
+            'binarize': [0.0, 0.5, 1.0]
+            }
+            clf = BernoulliNB()
+        elif sub_nb == "Multinomial":
+            param_grid = {
+            'alpha': [0.1, 0.5, 1.0, 2.0],
+            'fit_prior': [True, False]
+        }
+            clf = MultinomialNB()
+        # param_grid = {
+        #     'var_smoothing': [1e-9, 1e-8, 1e-7, 1e-6]
+        # }
+        # clf = GaussianNB()
 
     # Initialize GridSearchCV 
     grid_search = GridSearchCV(
@@ -745,7 +830,7 @@ def backend_clf(df_x, df_y, clf_type, factor):
         # st.subheader("Under Construction")
         cluster_num = st.number_input("Setup Neighbor Q'ty", min_value=1, max_value=10, value=2)
         clf = KNeighborsClassifier(n_neighbors=cluster_num)
-    elif clf_type == "Navie Bayes":
+    elif clf_type == "Naive Bayes":
         nb_method = st.selectbox("Choose Method", ["Gaussian", "Bernoulli", "Multinomial"])
         if nb_method == "Gaussian":
             clf = GaussianNB()
@@ -860,13 +945,16 @@ def main():
     uploaded_raw = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"])
     # uploaded_csv = st.file_uploader('#### 選擇您要上傳的CSV檔')
 
-    ana_type = st.selectbox("Choose Analysis Mehthd", ["Regression Method", "Classification"])
+    ana_type = st.selectbox("Choose Analysis Mehthd", ["Regression Method", "Classification", "Clustering"])
 
     if ana_type == "Regression Method":
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
 
     elif ana_type == "Classification":
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSAL6t_HNdjVhKPyDzt-fVMHqT7ZZnWPrKLIY-QveQxF9vMbR-HbRwcDBM1MEyUjnHkC0JWKbL2TjP0/pub?gid=0&single=true&output=csv"
+
+    elif ana_type == "Clustering":
+        url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
 
     else:
         url = None
@@ -899,29 +987,49 @@ def main():
         st.dataframe(df_reg.describe())
     
     # select_list
-    response = st.selectbox("### Choose Response(y)", select_list)
-    # response
-    factor_list = select_list.copy()
-    factor_list.remove(response)
-    factor = st.multiselect(
-        "### Choose Factor(x)", factor_list)
-    if not factor:
-        st.error("Please select at least one factor.")
+    if ana_type == "Clustering":
+        st.header("Clustering Analysis")
+        st.markdown("請選擇分群演算法與參數，並可視化分群結果。")
+        factor_list = select_list.copy()
+        # factor_list.remove(response)
+        factor = st.multiselect(
+            "### Choose Factor(x)", factor_list)
+        if not factor:
+            st.error("Please select at least one factor.")
 
-    if uploaded_raw is None:
-        st.header('未上傳檔案，以下為 Demo：')
-        response = "Y2"
-        factor = ["R", "r", "t"]
+        if uploaded_raw is None:
+            st.header('未上傳檔案，以下為 Demo：')
+            response = "Y2"
+            factor = ["R", "r", "t"]
+        
+        df_c = df_reg[factor]
+        feature_name = factor
 
-    df_x = df_reg[factor]
-    df_y = df_reg[response]
-    feature_name = factor
-    dict_yscarler = {
-        "Y_Max": df_y.max(),
-        "Y_Min": df_y.min(),
-        "Y_Delta": df_y.max() - df_y.min(),
-        # "Y4": MinMaxScaler(feature_range=(0, 1)),
-    }    
+    else:
+
+        response = st.selectbox("### Choose Response(y)", select_list)
+        # response
+        factor_list = select_list.copy()
+        factor_list.remove(response)
+        factor = st.multiselect(
+            "### Choose Factor(x)", factor_list)
+        if not factor:
+            st.error("Please select at least one factor.")
+
+        if uploaded_raw is None:
+            st.header('未上傳檔案，以下為 Demo：')
+            response = "Y2"
+            factor = ["R", "r", "t"]
+
+        df_x = df_reg[factor]
+        df_y = df_reg[response]
+        feature_name = factor
+        dict_yscarler = {
+            "Y_Max": df_y.max(),
+            "Y_Min": df_y.min(),
+            "Y_Delta": df_y.max() - df_y.min(),
+            # "Y4": MinMaxScaler(feature_range=(0, 1)),
+        }    
     # df_factor = pd.DataFrame(factor)
 
     
@@ -1186,7 +1294,7 @@ def main():
             st.dataframe(df_cross_val)
 
         clf_type = st.selectbox("### Choose Classification Method", ["Support Vector", "Decision Tree", 
-                                                                     "Random Forest", "K-Means", "Navie Bayes", 
+                                                                     "Random Forest", "K-Means", "Naive Bayes", 
                                                                      "Gaussian Process","Gradient Boosting",
                                                                      "XGBoosting",
                                                                      ])
@@ -1204,6 +1312,11 @@ def main():
         # df_y = df_reg[response]
             df_x_opt = df_x_clf.copy()
             cv_time = st.number_input("Choose Optimize Trial Times", value=3, min_value=2, max_value=10)
+            sub_nb = None
+            if clf_type == "Naive Bayes":
+                sub_nb = st.selectbox("Choose Navie Bayes Method", ["Gaussian", "Bernoulli", "Multinomial"])
+            
+            # st.write(sub_nb)
             # 按鈕觸發
             st_opt = st.button("Start Optimize", key="opt_button")
 
@@ -1214,7 +1327,7 @@ def main():
              # 根據 session_state 的狀態執行操作
             if st.session_state.optimize_triggered:
 
-                df_cv_opt_rslt, best_params, best_model, df_imps_raw = optimize_model_clf(df_x_opt, df_y, clf_type, cv_time=cv_time)
+                df_cv_opt_rslt, best_params, best_model, df_imps_raw = optimize_model_clf(df_x_opt, df_y, clf_type, cv_time=cv_time, sub_nb=sub_nb)
                 df_imps = df_imps_raw.copy()
                 # df_imps_nm["Feature"] = factor
                 df_imps.insert(0, "Feature", factor)
@@ -1349,6 +1462,45 @@ def main():
 
                 tools.clf_score(df_y, y_hat)
 
+    if ana_type == "Clustering":
+
+        # select_list = list(df_raw.columns)
+        # cluster_features = st.multiselect("### Choose Features for Clustering", select_list, default=select_list[:2])
+        # if not cluster_features:
+        #     st.warning("請至少選擇兩個特徵進行分群。")
+        #     return
+        # df_x_cluster = df_reg[cluster_features]
+
+        cluster_method = st.selectbox("Choose Clustering Method", ["KMeans", "DBSCAN", "Spectral Clustering", "Agglomerative Clustering"])
+        df_c_reg, df_nom = tools.nom_checkbox(df_c, key="nom_in_reg")
+        if cluster_method in ["KMeans", "Spectral Clustering", "Agglomerative Clustering"]:
+            n_clusters = st.number_input("Number of Clusters", min_value=2, max_value=10, value=3)
+        else:
+            n_clusters = None
+        if cluster_method == "DBSCAN":
+            eps = st.number_input("DBSCAN eps", min_value=0.1, max_value=10.0, value=0.5, step=0.1)
+            min_samples = st.number_input("DBSCAN min_samples", min_value=1, max_value=20, value=5)
+        else:
+            eps = 0.5
+            min_samples = 5
+
+        if st.button("Run Clustering"):
+            labels = run_clustering(df_c_reg, cluster_method, n_clusters=n_clusters if n_clusters else 3, eps=eps, min_samples=min_samples)
+            st.write("Clustering Labels:")
+            df_lb = pd.DataFrame({"index": df_c.index, "cluster": labels})
+            # df_c = df_c_reg.copy()
+            df_c["cluster"] = labels
+            st.dataframe(df_lb)
+            st.dataframe(df_c)
+            fig = plot_clusters(df_c, labels)
+            st.plotly_chart(fig, use_container_width=True)
+
+            tools.download_file(name_label="Input Clustering File Name",
+                            button_label='Download clustering result as CSV',
+                            file=df_c,
+                            file_type="csv",
+                            gui_key="clustering_data"
+                            )
 
 #%% Web App 頁面
 if __name__ == '__main__':
