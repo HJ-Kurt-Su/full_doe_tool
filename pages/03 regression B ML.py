@@ -60,6 +60,26 @@ def run_clustering(df_x, method, n_clusters=3, eps=0.5, min_samples=5):
     if method == "KMeans":
         model = KMeans(n_clusters=n_clusters, random_state=42)
         labels = model.fit_predict(df_x)
+        sse = []
+        max_k = 15
+        for k in range(1, max_k):
+            kmeans = KMeans(n_clusters=k, random_state=42)
+            kmeans.fit(df_x)
+            sse.append(kmeans.inertia_)
+
+        # 轉換為 DataFrame 供 plotly 使用   
+        df_elbow = pd.DataFrame({'K': range(1, max_k), 'SSE': sse})
+        df_elbow["SSE_ratio"] = df_elbow["SSE"].pct_change()
+        df_elbow["SSE_div_first"] = df_elbow["SSE"] / df_elbow["SSE"].iloc[0]
+        df_elbow
+
+        # 繪製手肘圖
+        fig = px.line(df_elbow, x='K', y='SSE', markers=True,
+                    title='Elbow Method for Optimal K',
+                    labels={'SSE': 'Sum of Squared Errors'},
+                    template='plotly_white')
+        st.plotly_chart(fig, use_container_width=True)
+        
     elif method == "DBSCAN":
         model = DBSCAN(eps=eps, min_samples=min_samples)
         labels = model.fit_predict(df_x)
@@ -465,7 +485,7 @@ def optimize_model(df_x, df_y, reg_type, cv_time=5):
     return df_cv_opt_rslt, best_params, best_model, df_imps
 
 
-def optimize_model_clf(df_x, df_y, clf_type, cv_time=5):
+def optimize_model_clf(df_x, df_y, clf_type, cv_time=5, sub_nb=None):
     """
     Optimize model parameters using GridSearchCV for classification.
 
@@ -554,6 +574,33 @@ def optimize_model_clf(df_x, df_y, clf_type, cv_time=5):
             'colsample_bytree': [0.8, 1.0]
         }
         clf = XGBClassifier(random_state=42)
+
+    elif clf_type == "Naive Bayes":
+        # st.write(sub_nb)
+        # sub_nb
+        # sub_nb = st.selectbox("Choose Naive Bayes Type", ["GaussianNB", "BernoulliNB", "MultinomialNB"])
+        if sub_nb == "Gaussian":
+            param_grid = {
+                'var_smoothing': [1e-9, 1e-8, 1e-7, 1e-6]
+            }
+            clf = GaussianNB()
+            # st.write(clf)
+        elif sub_nb == "Bernoulli":
+            param_grid = {
+            'alpha': [0.1, 0.5, 1.0, 2.0],
+            'binarize': [0.0, 0.5, 1.0]
+            }
+            clf = BernoulliNB()
+        elif sub_nb == "Multinomial":
+            param_grid = {
+            'alpha': [0.1, 0.5, 1.0, 2.0],
+            'fit_prior': [True, False]
+        }
+            clf = MultinomialNB()
+        # param_grid = {
+        #     'var_smoothing': [1e-9, 1e-8, 1e-7, 1e-6]
+        # }
+        # clf = GaussianNB()
 
     # Initialize GridSearchCV 
     grid_search = GridSearchCV(
@@ -783,7 +830,7 @@ def backend_clf(df_x, df_y, clf_type, factor):
         # st.subheader("Under Construction")
         cluster_num = st.number_input("Setup Neighbor Q'ty", min_value=1, max_value=10, value=2)
         clf = KNeighborsClassifier(n_neighbors=cluster_num)
-    elif clf_type == "Navie Bayes":
+    elif clf_type == "Naive Bayes":
         nb_method = st.selectbox("Choose Method", ["Gaussian", "Bernoulli", "Multinomial"])
         if nb_method == "Gaussian":
             clf = GaussianNB()
@@ -1247,7 +1294,7 @@ def main():
             st.dataframe(df_cross_val)
 
         clf_type = st.selectbox("### Choose Classification Method", ["Support Vector", "Decision Tree", 
-                                                                     "Random Forest", "K-Means", "Navie Bayes", 
+                                                                     "Random Forest", "K-Means", "Naive Bayes", 
                                                                      "Gaussian Process","Gradient Boosting",
                                                                      "XGBoosting",
                                                                      ])
@@ -1265,6 +1312,11 @@ def main():
         # df_y = df_reg[response]
             df_x_opt = df_x_clf.copy()
             cv_time = st.number_input("Choose Optimize Trial Times", value=3, min_value=2, max_value=10)
+            sub_nb = None
+            if clf_type == "Naive Bayes":
+                sub_nb = st.selectbox("Choose Navie Bayes Method", ["Gaussian", "Bernoulli", "Multinomial"])
+            
+            # st.write(sub_nb)
             # 按鈕觸發
             st_opt = st.button("Start Optimize", key="opt_button")
 
@@ -1275,7 +1327,7 @@ def main():
              # 根據 session_state 的狀態執行操作
             if st.session_state.optimize_triggered:
 
-                df_cv_opt_rslt, best_params, best_model, df_imps_raw = optimize_model_clf(df_x_opt, df_y, clf_type, cv_time=cv_time)
+                df_cv_opt_rslt, best_params, best_model, df_imps_raw = optimize_model_clf(df_x_opt, df_y, clf_type, cv_time=cv_time, sub_nb=sub_nb)
                 df_imps = df_imps_raw.copy()
                 # df_imps_nm["Feature"] = factor
                 df_imps.insert(0, "Feature", factor)
@@ -1436,13 +1488,16 @@ def main():
             labels = run_clustering(df_c_reg, cluster_method, n_clusters=n_clusters if n_clusters else 3, eps=eps, min_samples=min_samples)
             st.write("Clustering Labels:")
             df_lb = pd.DataFrame({"index": df_c.index, "cluster": labels})
+            # df_c = df_c_reg.copy()
+            df_c["cluster"] = labels
             st.dataframe(df_lb)
+            st.dataframe(df_c)
             fig = plot_clusters(df_c, labels)
             st.plotly_chart(fig, use_container_width=True)
-            
+
             tools.download_file(name_label="Input Clustering File Name",
                             button_label='Download clustering result as CSV',
-                            file=df_lb,
+                            file=df_c,
                             file_type="csv",
                             gui_key="clustering_data"
                             )
