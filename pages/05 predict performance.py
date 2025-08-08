@@ -7,6 +7,7 @@ import streamlit as st
 # from io import BytesIO
 from sklearn.metrics import r2_score, mean_absolute_percentage_error, max_error, mean_squared_error
 import numpy as np
+import tools
 
 
 
@@ -63,19 +64,20 @@ def main():
 
     # uploaded_model = st.sidebar.file_uploader("請上傳您的 Model 檔案", type=["pickle"])
     # uploaded_model
-    uploaded_file = st.sidebar.file_uploader("請上傳您的 CSV 檔案", type=["csv"])
+    uploaded_raw = st.sidebar.file_uploader("請上傳您的 CSV 檔案", type=["csv", "xlsx", "xls"], label_visibility="collapsed")
 
     
 
 
-    if uploaded_file is not None:
-        st.header('您所上傳的 CSV 檔內容：')
-        df_raw = pd.read_csv(uploaded_file, encoding="utf-8")
+    if uploaded_raw is not None:
+        # st.header('您所上傳的 CSV 檔內容：')
+        # df_raw = pd.read_csv(uploaded_file, encoding="utf-8")
+        url = None
     else:
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5skYRbfVPGE6RFYIM6Gg9QurH8u3h_RLfjt-CG0z5YgyxWEUTOdvoKmVkfWCLc2ECAuSEKaHVYPOA/pub?gid=0&single=true&output=csv"
-        st.header('未上傳檔案，以下為 Demo：')
-        df_raw = pd.read_csv(url, encoding="utf-8")
-    
+        # st.header('未上傳檔案，以下為 Demo：')
+        # df_raw = pd.read_csv(url, encoding="utf-8")
+    df_raw = tools.upload_file(uploaded_raw, url)
     st.dataframe(df_raw)
 
     select_list = list(df_raw.columns)
@@ -87,6 +89,9 @@ def main():
 
     prediction = st.selectbox("Please select predict value", predict_list)
     factor_number = st.number_input("Choose Factor Number", value=1, min_value=1)
+
+    df_raw[y]
+    df_raw[prediction]
 
     # factor_number = 3
 
