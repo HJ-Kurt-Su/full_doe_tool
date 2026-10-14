@@ -1,329 +1,140 @@
-import streamlit as st
-import pandas as pd
 import itertools
 
-# import datetime
 import numpy as np
-# import io
 import plotly.express as px
-# from plotly.subplots import make_subplots
 import plotly.graph_objects as go
-import plotly.figure_factory as ff
+import streamlit as st
+from scipy.stats import gaussian_kde
+
 import tools
 
-# @st.cache_data
-# def convert_df(df):
-#     # IMPORTANT: Cache the conversion to prevent computation on every rerun
-#     return df.to_csv(index=False).encode('utf-8')
+FIG_TYPES = ["box", "violin", "histogram", "distribution", "pair plot", "interaction(DOE)", "scatter", "bubble", "bubble animate"]
+TEMPLATE = "simple_white"
 
 
-def backend(fig_type, df_plot, para):
-    # para
-    cate_req = para["cate_req"]
-    if cate_req == True:
-        category = para["cate"]
-    else:
-        category = None
-
-
-    fig_width = para["width"]
-    fig_height = para["height"]
-
-    color_sequence = ["#65BFA1", "#A4D6C1", "#D5EBE1", "#EBF5EC", "#00A0DF", "#81CDE4", "#BFD9E2"]
-    color_sequence = px.colors.qualitative.Pastel
-    template = "simple_white"
-
-    if fig_type not in ["pair plot", "histogram", "distribution"]:
-        fig_type
-        y_var = para["y"]
-    
-    if fig_type not in ["pair plot", "interaction(DOE)"]:
-        x_var = para["x"]
-
-
-    if fig_type == "box":
-        fig = px.box(df_plot, x = x_var, y=y_var, color=category, points="all", 
-                        color_discrete_sequence=color_sequence, template=template, 
-                        # range_y=y_range, 
-                        width=fig_width, height=fig_height,
-                        hover_data=df_plot.columns,
-                    )
-
-    elif fig_type == "violin":
-        fig = px.violin(df_plot, x=x_var, y=y_var, color=category, points="all",
-                        box=False, color_discrete_sequence=color_sequence, 
-                        template=template, #range_y=y_range, 
-                        width=fig_width, height=fig_height,
-                        hover_data=df_plot.columns,
-                        )
-        
+def controls(fig_type, cols):
+    """Render the variable pickers needed by `fig_type`; return them as a dict."""
+    para = {}
+    if fig_type == "pair plot":
+        para["focus"] = st.multiselect("### Choose focus factor", cols)
     elif fig_type == "histogram":
-        bins = para["bins"]
-        barmode = para["barmode"]
-        fig = px.histogram(df_plot, x=x_var, nbins=bins, color=category,
-                    color_discrete_sequence=color_sequence, template=template,
-                    marginal="rug", hover_data=df_plot.columns,
-                    # range_x=x_range, range_y=y_range,        
-                    width=fig_width, height=fig_height
-                    )       
-        fig.update_layout(barmode=barmode)            
-        if barmode == "overlay":
-            # Reduce opacity to see both histograms 
-            fig.update_traces(opacity=0.75)
-    
+        para["x"] = st.selectbox("## Choose x variable", cols)
+        para["bins"] = st.number_input("Choose bins", min_value=5, value=10, max_value=100, step=5)
+        para["barmode"] = st.selectbox("## Choose Overlay/Stack Bar", ["overlay", "stack"])
     elif fig_type == "distribution":
-        bin_size = para["bin_size"]
-        if cate_req == False:
-            his_data=[df_plot[x_var].to_numpy()]
-            group_labels = [x_var]
+        para["x"] = st.selectbox("## Choose x variable", cols)
+        para["bin_size"] = st.number_input("Choose bin size", min_value=0.00, value=1.00, step=0.01)
+    else:
+        para["y"] = st.selectbox("## Choose y variable", cols)
+        x_list = [c for c in cols if c != para["y"]]
+        if fig_type == "interaction(DOE)":
+            para["focus"] = st.multiselect("### Choose focus factor", x_list)
         else:
-            unique_cate = df_plot[category].unique()
-            group_labels = []
-            his_data = []
-            for i in unique_cate:
-                group_labels.append(str(i))
-                df_his_temp = df_plot[df_plot[category] == i]
-                his_temp = df_his_temp[x_var].to_numpy()
-                his_data.append(his_temp)    
-        # group_labels
-        # his_data
-        fig = ff.create_distplot(his_data, group_labels, bin_size=bin_size)
-
-    
-    elif fig_type == "pair plot":
-        focus_factor = para["focus"]
-        fig = px.scatter_matrix(df_plot, dimensions=focus_factor, color=category, 
-                                color_discrete_sequence=color_sequence, template="plotly_white",
-                            width=fig_width, height=fig_height)
-        fig.update_traces(diagonal_visible=False, showupperhalf=False)
+            para["x"] = st.selectbox("### Choose x variable", x_list)
+            if fig_type in ("bubble", "bubble animate"):
+                para["size"] = st.selectbox("### Choose bubble size", x_list)
+            if fig_type == "bubble animate":
+                para["animate"] = st.selectbox("### Choose animate", x_list)
+    return para
 
 
-    elif fig_type in ["scatter", "bubble", "bubble animate"]:
-        if fig_type == "scatter":
-            size_var = None
-            animate = None
-        
-        elif fig_type == "bubble":
-            size_var = para["size"]
-            animate = None
-        
-        elif fig_type == "bubble animate":
-            size_var = para["size"]
-            animate = para["animate"]
-
-            
-        fig = px.scatter(df_plot, x=x_var, y=y_var, size=size_var, size_max=45,
-                animation_frame=animate, #animation_group=animate_g, 
-                color=category, color_discrete_sequence=color_sequence, template=template, 
-                # range_x=x_range, range_y=y_range, 
-                # log_x=xlog_scale, log_y=ylog_scale,
-                width=fig_width, height=fig_height
-                )
-
-    elif fig_type == "interaction(DOE)":
-        focus_factor = para["focus"]
-        iter_list =  list(itertools.combinations(focus_factor, 2))
-        inter_factor = st.selectbox(
-        "### Select inter-action factor", 
-        iter_list,
-        )
-                
-        # for inter_factor in iter_list:
-            
-        # inter_factor
-        factor_1 = inter_factor[0]
-        factor_2 = inter_factor[1]
-
-        select_list = list(inter_factor)
-        select_list.append(y_var)
-
-        df_interact_plot = df_plot[select_list]
-        df_interact_group = df_interact_plot.groupby(list(inter_factor), as_index=False).mean()
-        # color=factor_2, 
-        fig_scatter = px.scatter(df_interact_plot, x=factor_1, y=y_var, color=factor_2,
-                                width=fig_width, height=fig_height,
-                                )
-        fig_line = px.line(df_interact_group, x=factor_1, y=y_var, color=factor_2, width=fig_width, height=fig_height, markers=True)
-        fig = go.Figure(data=fig_scatter.data + fig_line.data)
-        fig.update_layout(
-            autosize=False,
-            width=fig_width,
-            height=fig_height,
-            xaxis_title=factor_1,
-            yaxis_title=y_var,
-            title=factor_2,
-            legend_title=factor_2,
-
-        )
-
-
-
-    if fig_type not in  ["pair plot", "interaction(DOE)", "histogram", "distribution"]:
-
-        fig.update_layout(
-            xaxis_title=x_var,
-            yaxis_title=y_var,
-            # legend_title="Legend Title",
-            font=dict(
-                family="Courier New, monospace",
-                size=18
-                # color="RebeccaPurple"
-            ),
-            yaxis = dict(tickfont = dict(size=25)),
-            xaxis = dict(tickfont = dict(size=15))
-        )
-
+def interaction_figure(df, focus, y, width, height):
+    pairs = list(itertools.combinations(focus, 2))
+    if not pairs:
+        st.info("Please choose at least two focus factors.")
+        st.stop()
+    f1, f2 = st.selectbox("### Select inter-action factor", pairs)
+    df_sel = df[[f1, f2, y]]
+    df_mean = df_sel.groupby([f1, f2], as_index=False).mean()
+    scatter = px.scatter(df_sel, x=f1, y=y, color=f2)
+    line = px.line(df_mean, x=f1, y=y, color=f2, markers=True)
+    fig = go.Figure(data=scatter.data + line.data)
+    fig.update_layout(autosize=False, width=width, height=height, xaxis_title=f1, yaxis_title=y,
+                      title=f2, legend_title=f2)
     return fig
 
 
+def distribution_figure(groups, bin_size, width, height):
+    """Density histogram + KDE curve + rug for each (label, values) group."""
+    fig = go.Figure()
+    for i, (label, values) in enumerate(groups):
+        color = tools.COLOR_SEQ[i % len(tools.COLOR_SEQ)]
+        common = dict(name=label, legendgroup=label, marker_color=color)
+        fig.add_histogram(x=values, histnorm="probability density", xbins=dict(size=bin_size), opacity=0.6, **common)
+        if len(values) > 1 and values.std() > 0:
+            xs = np.linspace(values.min(), values.max(), 200)
+            fig.add_scatter(x=xs, y=gaussian_kde(values)(xs), mode="lines", showlegend=False,
+                            line_color=color, legendgroup=label)
+        fig.add_scatter(x=values, y=np.zeros(len(values)), mode="markers", showlegend=False, legendgroup=label,
+                        marker=dict(color=color, symbol="line-ns-open", size=10))
+    fig.update_layout(barmode="overlay", template=TEMPLATE, width=width, height=height)
+    return fig
+
+
+def build_figure(fig_type, df, category, para, width, height):
+    common = dict(color=category, color_discrete_sequence=tools.COLOR_SEQ, template=TEMPLATE,
+                  width=width, height=height)
+    hover = dict(hover_data=df.columns)
+    x, y = para.get("x"), para.get("y")
+
+    if fig_type == "box":
+        fig = px.box(df, x=x, y=y, points="all", **hover, **common)
+    elif fig_type == "violin":
+        fig = px.violin(df, x=x, y=y, points="all", box=False, **hover, **common)
+    elif fig_type == "histogram":
+        fig = px.histogram(df, x=x, nbins=para["bins"], marginal="rug", **hover, **common)
+        fig.update_layout(barmode=para["barmode"])
+        if para["barmode"] == "overlay":
+            fig.update_traces(opacity=0.75)
+    elif fig_type == "distribution":
+        groups = [(x, df[x])] if category is None else [(str(k), g[x]) for k, g in df.groupby(category)]
+        fig = distribution_figure([(k, g.to_numpy(dtype=float)) for k, g in groups], para["bin_size"], width, height)
+    elif fig_type == "pair plot":
+        if not para["focus"]:
+            st.info("Please choose at least one focus factor.")
+            st.stop()
+        fig = px.scatter_matrix(df, dimensions=para["focus"], color=category,
+                                color_discrete_sequence=tools.COLOR_SEQ, template="plotly_white",
+                                width=width, height=height)
+        fig.update_traces(diagonal_visible=False, showupperhalf=False)
+    elif fig_type == "interaction(DOE)":
+        fig = interaction_figure(df, para["focus"], y, width, height)
+    else:  # scatter / bubble / bubble animate
+        fig = px.scatter(df, x=x, y=y, size=para.get("size"), size_max=45,
+                         animation_frame=para.get("animate"), **common)
+
+    if fig_type in ("box", "violin", "scatter", "bubble", "bubble animate"):
+        fig.update_layout(xaxis_title=x, yaxis_title=y, font=dict(family="Courier New, monospace", size=18),
+                          yaxis=dict(tickfont=dict(size=25)), xaxis=dict(tickfont=dict(size=15)))
+    return fig
+
 
 def main():
-    st.title('EDA (Exploratory Data Analysis) Tool')
+    st.title("EDA (Exploratory Data Analysis) Tool")
 
-    st.markdown("               ")
-    st.markdown("               ")
-
-    uploaded_raw = st.sidebar.file_uploader('#### 選擇您要上傳的CSV檔', type=["csv", "xlsx"])
-    if uploaded_raw is not None:
-        url = None
-    else:
-        url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8/pub?gid=0&single=true&output=csv"
-
-    df_raw = tools.upload_file(uploaded_raw, url)
-
-    
+    uploaded = st.sidebar.file_uploader(tools.UPLOAD_LABEL, type=tools.TABLE_TYPES)
+    df_raw = tools.load_table(uploaded, tools.DEMO_REG)
     st.dataframe(df_raw)
     st.markdown("**Data Description**")
     st.dataframe(df_raw.describe())
 
-    fig_type = st.selectbox(
-        "### Choose figure type", 
-        ["box", "violin", "histogram", "distribution", "pair plot", "interaction(DOE)", "scatter", "bubble", "bubble animate", ],
-    )
+    fig_type = st.selectbox("### Choose figure type", FIG_TYPES)
+    cols = list(df_raw.columns)
 
-    select_list = list(df_raw.columns)
+    category = st.selectbox("### Choose category", cols) if st.checkbox("Category Required") else None
+    df_plot = tools.filter_data(df_raw)
 
-    para = {}
-    cate_req = st.checkbox('Category Required')
-    para["cate_req"] = cate_req
-    if cate_req == True:
-        category = st.selectbox(
-            "### Choose category", select_list)
-        para["cate"] = category
-    
+    para = controls(fig_type, cols)
+    st.divider()
+    width, height = tools.fig_size_inputs()
+    st.divider()
 
- 
-  
-    filter_req = st.checkbox('Filter Data')
+    fig = build_figure(fig_type, df_plot, category, para, width, height)
+    st.plotly_chart(fig, width="stretch")
 
-    if filter_req == True:
-        st.markdown("----------------")  
-        st.markdown("#### Filter Parameter")
-        filter_para = st.selectbox(
-            "### Choose filter column", select_list)
-        filter_sel = df_raw[filter_para].unique()
-        filter_item = st.multiselect(
-            "### Choose item", filter_sel,
-        )
-        st.markdown("----------------")  
-        # filter_item        
-    
-    if fig_type == "pair plot":
-        
-        focus_factor = st.multiselect(
-            "### Choose focus factor", select_list,
-        )
-        para["focus"] = focus_factor
-
-    else:
-        if fig_type == "histogram":
-            x_var = st.selectbox("## Choose x variable", select_list)
-            para["x"] = x_var
-            bins = st.number_input('Choose bins', min_value=5, value=10, max_value=100, step=5) 
-            para["bins"] = bins
-            barmode = st.selectbox("## Choose Overlay/Stack Bar", ["overlay", "stack"])
-            para["barmode"] = barmode
-
-        elif fig_type == "distribution":
-            x_var = st.selectbox("## Choose x variable", select_list)
-            para["x"] = x_var
-            bin_size = st.number_input('Choose bin size', min_value=0.00, value=1.00, step=0.01) 
-            para["bin_size"] = bin_size
-            # barmode = st.selectbox("## Choose Overlay/Stack Bar", ["overlay", "stack"])
-            # para["barmode"] = barmode
-
-        else:
-            y_var = st.selectbox("## Choose y variable", select_list)
-            para["y"] = y_var
-            if not y_var:
-                st.error("Please select one y variable.")
-
-            x_list = select_list.copy()
-            x_list.remove(y_var)
-
-            if fig_type == "interaction(DOE)":
-                focus_factor = st.multiselect(
-                    "### Choose focus factor", x_list,
-                )
-                para["focus"] = focus_factor
-
-            else: 
-                x_var = st.selectbox(
-                "### Choose x variable", x_list)
-                para["x"] = x_var
-
-                if not x_var:
-                    st.error("Please select one x variable.")
-            
-                if fig_type in ["bubble", "bubble animate"]:
-                    size_var = st.selectbox(
-                            "### Choose bubble size", x_list)
-                    
-                    para["size"] = size_var
-                    if fig_type == "bubble animate":
-                        animate = st.selectbox(
-                            "### Choose animate", x_list)
-                        para["animate"] = animate
-
-    st.markdown("----------------")  
-
-        
-    size_col1, size_col2 = st.columns(2)
-    with size_col1:
-        fig_width = st.number_input('Figure Width', min_value=640, value=1280, max_value=5120, step=320) 
-        para["width"] = fig_width
-    with size_col2:
-        fig_height = st.number_input('Figure Height', min_value=480, value=960, max_value=3840, step=240) 
-        para["height"] = fig_height
-
-    st.markdown("----------------")  
-
-    if filter_req == True:
-        df_plot = df_raw[df_raw[filter_para].isin(filter_item)].copy()
-        st.markdown("----------------") 
-        st.markdown("#### Filter DataFrame")
-        df_plot
-        st.markdown("----------------")  
-    else:
-        df_plot = df_raw.copy()
-
-    fig = backend(fig_type, df_plot, para)
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.markdown("---")
-
-    tools.download_file(name_label="Input Figure File Name",
-                    button_label='Download figure as HTML',
-                    file=fig,
-                    file_type="html",
-                    gui_key="figure"
-                    )
-    
-    st.markdown("---")
+    st.divider()
+    tools.download_file("Input Figure File Name", "Download figure as HTML", fig, "html", "figure")
+    st.divider()
 
 
-#%% Web App 頁面
-if __name__ == '__main__':
-    main()
-
-# %%
+main()

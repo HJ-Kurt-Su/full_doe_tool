@@ -1,464 +1,308 @@
-"""
-Common use tool for Streamlit UI & regression tool
-
-"""
-
-
-import streamlit as st
-import pandas as pd
-# import itertools
+"""Shared helpers for the Streamlit pages: data loading, downloads, filters,
+normalisation, model metrics and common figures."""
 
 import datetime
-import numpy as np
 import io
 import pickle
 
-from sklearn.preprocessing import StandardScaler
-
-from sklearn.metrics import r2_score, mean_absolute_percentage_error, max_error, mean_squared_error, root_mean_squared_error
-
-
-from sklearn.metrics import accuracy_score, f1_score
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import roc_curve, auc
-from sklearn.metrics import PrecisionRecallDisplay, precision_recall_curve, average_precision_score
-
+import numpy as np
+import pandas as pd
 import plotly.express as px
-from plotly.subplots import make_subplots
 import plotly.graph_objects as go
+import streamlit as st
+from plotly.subplots import make_subplots
+from sklearn.metrics import (
+    accuracy_score,
+    auc,
+    average_precision_score,
+    confusion_matrix,
+    f1_score,
+    mean_absolute_percentage_error,
+    precision_recall_curve,
+    r2_score,
+    roc_curve,
+    root_mean_squared_error,
+)
+
+_SHEET = "https://docs.google.com/spreadsheets/d/e/{}/pub?gid=0&single=true&output=csv"
+DEMO_DOE = _SHEET.format("2PACX-1vRt_gecFPJZUw3MmI16zI042Z_RaeWj7w-Fs07wLaj-qKymK_K_XwRx-G09IcrqHmHhUQqP8-Qe0cQQ")
+DEMO_REG = _SHEET.format("2PACX-1vTnqEkuIqYHm1eDDF-wHHyQ-Jm_cvmJuyBT4otEFt0ZE0A6FEQyg1tqpWTU0PXIFA_jYRX8O-G6SzU8")
+DEMO_TAGUCHI = _SHEET.format("2PACX-1vR2pTVvSJJEWf1woRdODBYzBvJsHvgIgcJWAly2EDoNGm610xiMISNdaf8yq1f8h732zqel7v-vNon7")
+DEMO_CLF = _SHEET.format("2PACX-1vSAL6t_HNdjVhKPyDzt-fVMHqT7ZZnWPrKLIY-QveQxF9vMbR-HbRwcDBM1MEyUjnHkC0JWKbL2TjP0")
+DEMO_REAL_Y = _SHEET.format("2PACX-1vQ5skYRbfVPGE6RFYIM6Gg9QurH8u3h_RLfjt-CG0z5YgyxWEUTOdvoKmVkfWCLc2ECAuSEKaHVYPOA")
+DEMO_PREDICT = _SHEET.format("2PACX-1vQjqLJWGJ46N6GkXkkMCcmthgALF9J28Bm1SGnwYUdmTpTn4Kq8tCzQ-G5FMddTZFF5YANEtPYese-g")
+DEMO_MODEL = "https://raw.githubusercontent.com/HJ-Kurt-Su/full_doe_tool/main/2023-07-01_model.pickle"
+
+UPLOAD_LABEL = "#### 選擇您要上傳的CSV檔"
+TABLE_TYPES = ["csv", "xlsx"]
+COLOR_SEQ = px.colors.qualitative.Pastel
+POINT_COLOR = "rgba(19, 166, 255, 0.6)"
 
 
-
-## UI download file/figure
-@st.cache_data
-def convert_df(df):
-    # IMPORTANT: Cache the conversion to prevent computation on every rerun
-    return df.to_csv(index=False).encode('utf-8')
+## Data loading
+@st.cache_data(ttl=3600, show_spinner=False)
+def read_url(url):
+    return pd.read_csv(url, encoding="utf-8")
 
 
-def upload_file(uploaded_raw, url):
-
-    if uploaded_raw is not None:
-        up_file_type = uploaded_raw.name.split(".")[1]
-
-        if up_file_type == "csv":
-            df_raw = pd.read_csv(uploaded_raw, encoding="utf-8")
-        elif up_file_type == "xlsx":
-            df_raw = pd.read_excel(uploaded_raw)
-        st.header('您所上傳的CSV檔內容：')
-
-        # fac_n = df_fac.shape[1]
-    else:
-        st.header('未上傳檔案，以下為 Demo：')
-        df_raw = pd.read_csv(url, encoding="utf-8")
-
-    return df_raw
+@st.cache_data(show_spinner=False)
+def read_upload(name, data):
+    buf = io.BytesIO(data)
+    if name.lower().endswith((".xlsx", ".xls")):
+        return pd.read_excel(buf)
+    return pd.read_csv(buf, encoding="utf-8")
 
 
-def convert_fig(fig):
-
-    mybuff = io.StringIO()
-   
-    # fig_html = fig_pair.write_html(fig_file_name)
-    fig.write_html(mybuff, include_plotlyjs='cdn')
-    html_bytes = mybuff.getvalue().encode()
-
-    return html_bytes
+def load_table(uploaded, demo_url):
+    """Return the uploaded table, or the demo table when nothing is uploaded."""
+    if uploaded is None:
+        st.header("未上傳檔案，以下為 Demo：")
+        return read_url(demo_url)
+    st.header("您所上傳的CSV檔內容：")
+    return read_upload(uploaded.name, uploaded.getvalue())
 
 
-# def convert_img(fig, file_format="png"):
-#     """
-#     Convert a Plotly figure to an image file (JPG or PNG).
+def filter_data(df, key="filter"):
+    """Optional 'filter rows by column value' widget; returns the (filtered) frame."""
+    if not st.checkbox("Filter Data", key=f"{key}_req"):
+        return df
+    st.divider()
+    st.markdown("#### Filter Parameter")
+    col = st.selectbox("### Choose filter column", list(df.columns), key=f"{key}_col")
+    items = st.multiselect("### Choose item", df[col].unique(), key=f"{key}_items")
+    st.divider()
+    out = df[df[col].isin(items)].copy()
+    st.markdown("#### Filter DataFrame")
+    st.dataframe(out)
+    st.divider()
+    if out.empty:
+        st.warning("Please choose at least one item to keep.")
+        st.stop()
+    return out
 
-#     Parameters:
-#         fig (plotly.graph_objects.Figure): The Plotly figure to convert.
-#         file_format (str): The desired image format ("png" or "jpg").
 
-#     Returns:
-#         bytes: The image file in binary format.
-#     """
-#     # 檢查格式是否正確
-#     if file_format not in ["png", "jpg"]:
-#         raise ValueError("Invalid file format. Use 'png' or 'jpg'.")
+def pick(label, options, demo, multi=False):
+    """selectbox/multiselect that preselects the demo columns when `demo` is given."""
+    if multi:
+        return st.multiselect(label, options, default=[c for c in demo or [] if c in options])
+    return st.selectbox(label, options, index=options.index(demo) if demo in options else 0)
 
-#     # 將圖表轉換為圖像
-#     image_bytes = fig.to_image(format=file_format)
 
-#     return image_bytes
+def fig_size_inputs():
+    c1, c2 = st.columns(2)
+    with c1:
+        width = st.number_input("Figure Width", min_value=640, value=1280, max_value=5120, step=320)
+    with c2:
+        height = st.number_input("Figure Height", min_value=480, value=960, max_value=3840, step=240)
+    return width, height
+
+
+## Downloads
+def _csv_bytes(df):
+    return df.to_csv(index=False).encode("utf-8")
+
+
+def _html_bytes(fig):
+    return fig.to_html(include_plotlyjs="cdn").encode()
+
+
+_SERIALIZERS = {
+    "csv": (_csv_bytes, "text/csv"),
+    "html": (_html_bytes, "text/html"),
+    "pickle": (pickle.dumps, "application/octet-stream"),
+}
 
 
 def download_file(name_label, button_label, file, file_type, gui_key):
-    date = str(datetime.datetime.now()).split(" ")[0]
-    if file_type == "csv":
-        file = convert_df(file)
-        mime_text = 'text/csv'
-    elif file_type == "html":
-        file = convert_fig(file)  
-        mime_text = 'text/html'
-    elif file_type == "pickle":
-        file = pickle.dumps(file)
-        mime_text = "application/octet-stream"
-    # elif file_type in ["png", "jpg"]:
-    #     file = convert_img(file, file_format=file_type)
-    #     # file = file.getvalue()  
-    #     mime_text = f"image/{file_type}"
-
-    # file_name_col, button_col = st.columns(2)
-    result_file = date + "_result"
-    download_name = st.text_input(label=name_label, value=result_file, key=gui_key) 
-    download_name = download_name + "." + file_type
-
-    st.download_button(label=button_label,  
-                    data=file, 
-                    file_name=download_name,
-                    mime=mime_text,
-                    key=gui_key+"dl")
-    
+    """File-name box + download button. The payload is only built when clicked."""
+    serialize, mime = _SERIALIZERS[file_type]
+    stem = st.text_input(label=name_label, value=f"{datetime.date.today()}_result", key=gui_key)
+    st.download_button(
+        label=button_label,
+        data=lambda: serialize(file),
+        file_name=f"{stem}.{file_type}",
+        mime=mime,
+        key=f"{gui_key}dl",
+        on_click="ignore",
+    )
 
 
 def reg_save(df_result, fig, model):
-        st.markdown("---")
-
-        download_file(name_label="Input Model File Name",
-                      button_label='Download model as PICKLE',
-                      file=model,
-                      file_type="pickle",
-                      gui_key="model"
-                      )
-
-
-        st.markdown("---")
-
-        download_file(name_label="Input Figure File Name",
-                      button_label='Download figure as HTML',
-                      file=fig,
-                      file_type="html",
-                      gui_key="figure"
-                      )
-        
-        st.markdown("---")
+    for label, btn, obj, ftype, key in [
+        ("Input Model File Name", "Download model as PICKLE", model, "pickle", "model"),
+        ("Input Figure File Name", "Download figure as HTML", fig, "html", "figure"),
+        ("Input Result File Name", "Download statistics result as CSV", df_result, "csv", "result_data"),
+    ]:
+        st.divider()
+        download_file(label, btn, obj, ftype, key)
+    st.divider()
 
 
-        download_file(name_label="Input Result File Name",
-                      button_label='Download statistics result as CSV',
-                      file=df_result,
-                      file_type="csv",
-                      gui_key="result_data"
-                      )
-        
-        st.markdown("---")
-
-        
-        # download_file(name_label="Input Factor File Name",
-        #               button_label='Download factor as CSV',
-        #               file=df_factor,
-        #               file_type="csv",
-        #               gui_key="factor_data"
-        #               )
+def run_gate(label, key, sig):
+    """Button whose result survives reruns until `sig` (the inputs) changes."""
+    if st.button(label, key=key):
+        st.session_state[f"{key}_sig"] = sig
+    return st.session_state.get(f"{key}_sig") == sig
 
 
-## Check Box Tool For Normalize
+## Normalisation (row 0 = mean, row 1 = std, the layout stored in model pickles)
+def apply_nom(df, df_nom):
+    cols = list(df_nom.columns)
+    mean = df_nom.iloc[0].astype(float)
+    std = df_nom.iloc[1].astype(float)
+    return (df[cols].astype(float) - mean) / std
+
+
 def nom_checkbox(df_x, key=None):
-    nom_choice = st.checkbox("Normalize Factor", value=False, key=key)
-    df_nom = pd.DataFrame(columns=df_x.columns)
-    if nom_choice == True:
-        st.subheader("Normalize Factor Mean & Standard Deviation")
-        
-        scaler = StandardScaler()
-        x = scaler.fit_transform(df_x)
-        st.subheader("Normalize X")
-        st.dataframe(x)
-        
-        for i in df_x.columns:           
-            std_dev = np.std(df_x[i])
-            mean = np.mean(df_x[i])
-            df_nom.at[0, i] = mean  # Add mean value at row 0, column i
-            df_nom.at[1, i] = std_dev  # Add std_dev value at row 1, column i
-            # nom_df[i,1] = std_dev
-            # st.markdown(i)
-            # st.markdown("Mean: %s" % mean)
-            # st.markdown("Standard Deviation: %s" % std_dev)
-        st.dataframe(df_nom)
-        download_file(name_label="Normalize Factor Mean & Std",
-                    button_label='Download Normalize Factor',
-                    file=df_nom,
-                    file_type="csv",
-                    gui_key="nom_df"
-                    )
-        
-    else:
-        x = df_x
+    """Optional standardisation. Returns (X, df_nom); df_nom has no rows when unused."""
+    if not st.checkbox("Normalize Factor", value=False, key=key):
+        return df_x, pd.DataFrame(columns=df_x.columns)
 
+    st.subheader("Normalize Factor Mean & Standard Deviation")
+    mean = df_x.mean()
+    std = df_x.std(ddof=0).replace(0, 1.0)
+    df_nom = pd.DataFrame([mean, std]).reset_index(drop=True)
+    x = apply_nom(df_x, df_nom)
+    st.subheader("Normalize X")
+    st.dataframe(x)
+    st.dataframe(df_nom)
+    download_file("Normalize Factor Mean & Std", "Download Normalize Factor", df_nom, "csv", f"{key}_nom_df")
     return x, df_nom
 
-## Model performance tool
+
+## Metrics
+def perf_metrics(y, prediction, p):
+    """R2, adjusted R2, RMSE, MAPE for `p` factors."""
+    r2 = r2_score(y, prediction)
+    n = len(y)
+    adj = 1 - (1 - r2) * (n - 1) / (n - p - 1) if n - p - 1 > 0 else float("nan")
+    return r2, adj, root_mean_squared_error(y, prediction), mean_absolute_percentage_error(y, prediction)
 
 
-
-def backend_pefmce(y, prediction, p):
-    # Target: calculate model metrics (r2, mape, rmse)
-    # Input: actual Y, predict Y, factor number
-    # Use sklearn metrice module to calculate metrics
-
-    # Calculate R-squared score using the actual and predicted values
-    model_r2_score = r2_score(y, prediction)
-    n = len(y)  # Number of observations
-
-    # Calculate adjusted R-squared score
-    adj_r_squared = 1 - (1 - model_r2_score) * (n-1)/(n-p-1)
-
-    # Calculate Mean Absolute Percentage Error (MAPE)
-    model_mape_score = mean_absolute_percentage_error(y, prediction)
-
-    # Calculate individual MAPE values, adjusted to avoid division by zero
-    epsilon = np.finfo(np.float64).eps
-    mape = np.abs(prediction - y) / np.maximum(np.abs(y), epsilon)
-    mape_series = pd.Series(mape)  # Convert MAPE values to a pandas Series
-
-    # Calculate Root Mean Squared Error (RMSE)
-    model_rmse_score = root_mean_squared_error(y, prediction)
-
-    # Return all calculated metrics
-    return model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series
+def show_perf(y, prediction, p=None, key="perf", default_p=2):
+    """Render regression metrics; asks for the factor number when `p` is None."""
+    if len(y) != len(prediction):
+        st.error(f"Real value ({len(y)} rows) and prediction ({len(prediction)} rows) differ in length.")
+        st.stop()
+    if p is None:
+        p = st.number_input("Choose Factor Number", value=default_p, min_value=default_p, key=f"{key}_p")
+    r2, adj, rmse, mape = perf_metrics(y, prediction, p)
+    for text in (
+        f"$R^2$: {r2:.3f}",
+        f"Adjusted $R^2$: {adj:.3f}",
+        f"RMSE: {rmse:.3f}",
+        f"MAPE: {mape * 100:.1f} %",
+    ):
+        st.markdown(f"#### {text}")
+    return r2, adj, rmse, mape
 
 
+def predict_section(predict_fn, score_fn, key):
+    """'Predict new data' + 'check performance' block shared by the regression pages.
 
-
-def clf_score(y, y_predict, gui_key=None):
+    predict_fn(df_test) -> predictions; score_fn(y_true, y_hat) renders the metrics.
     """
-    Calculate model metrics (accuracy, risk, ROC figure) and provide visualizations.
-    Input:
-      - y: actual Y
-      - y_predict: predict Y
-      - gui_key: GUI-related keys for threshold input (optional)
-    Uses:
-      - sklearn metrics module to calculate metrics
-      - Plotly for visualization
+    if not st.checkbox("Predict New Data & Check Performance", key=f"{key}_pp"):
+        return
+    st.subheader("**Predict Portion**")
+    up = st.file_uploader("#### 選擇您要上傳的資料檔", type=TABLE_TYPES, key=f"{key}_predict")
+    df_test = load_table(up, DEMO_REG)
+    y_hat = predict_fn(df_test)
+    df_test["predict"] = y_hat
+    st.markdown("Predict Result:")
+    st.dataframe(df_test)
+    download_file("Input Predict File Name", "Download predict result as CSV", df_test, "csv", f"{key}_predict_data")
+    st.divider()
+
+    if not st.checkbox("Check Model Performance", key=f"{key}_chk"):
+        return
+    st.subheader("**Model Perfomance Portion**")
+    up_y = st.file_uploader(UPLOAD_LABEL, type=TABLE_TYPES, key=f"{key}_up_y")
+    df_y = load_table(up_y, DEMO_REAL_Y)
+    st.dataframe(df_y)
+    y = st.selectbox("Please select real value", list(df_y.columns), key=f"{key}_y")
+    score_fn(df_y[y], y_hat)
+
+
+def clf_score(y, y_pred, key, threshold_ui=True):
+    """ROC / confusion-matrix report for a binary classifier.
+
+    y_pred holds probabilities (threshold_ui=True) or already-binary labels.
+    Returns (ROC data, ROC figure).
     """
+    y = np.asarray(y)
+    y_pred = np.asarray(y_pred)
+    fpr, tpr, thresholds = roc_curve(y, y_pred)
+    st.markdown(f"### AUC is: {auc(fpr, tpr):.4f}")
 
-    # Compute the False Positive Rate (FPR), True Positive Rate (TPR), and thresholds using ROC curve
-    fpr, tpr, threshold = roc_curve(y, y_predict)
-    roc_auc = auc(fpr, tpr)  # Compute Area Under the Curve (AUC)
-
-    # Display the AUC value
-    st.markdown("### AUC is: %s" % round(roc_auc, 4))
-
-    # Create a dictionary of FPR, TPR, and thresholds
-    dict_sum = {"FPR": fpr, "TPR": tpr, "Threshold": threshold}
-
-    # Convert the dictionary to a pandas DataFrame
-    df_roc_data = pd.DataFrame.from_dict(dict_sum)
+    df_roc = pd.DataFrame({"FPR": fpr, "TPR": tpr, "Threshold": thresholds})
     st.subheader("ROC Data")
-    st.dataframe(df_roc_data)  # Display the ROC Data DataFrame
-
-    fig_size = 640  # Set the figure size
-
-    # Create a line plot for the ROC curve using Plotly
-    fig_roc = px.line(df_roc_data, x="FPR", y="TPR", markers=False, labels={'label': 'roc_auc'}, 
-                        range_x=[0, 1], range_y=[0, 1.1], width=fig_size, height=fig_size)
-    
+    st.dataframe(df_roc)
+    fig_roc = px.line(df_roc, x="FPR", y="TPR", range_x=[0, 1], range_y=[0, 1.1], width=640, height=640)
     st.subheader("ROC Figure")
-    st.plotly_chart(fig_roc, use_container_width=True)  # Display the ROC curve plot
+    st.plotly_chart(fig_roc, width="stretch")
 
-    # st.dataframe(threshold)
-    if gui_key:  # If GUI keys are provided, handle threshold selection
+    if threshold_ui:
         st.subheader("Accuracy Judge")
-        key_in = st.checkbox("Key-in threshold", key=gui_key["threshold_check"])
-        if key_in:
-            threshold_cut = st.number_input("Key-in threshold value", min_value=0.0001, max_value=0.9999, value=0.5)
-            st.write("Threshold value is: %s" % threshold_cut)
+        if st.checkbox("Key-in threshold", key=f"{key}_ti"):
+            cut = st.number_input("Key-in threshold value", min_value=0.0001, max_value=0.9999, value=0.5, key=f"{key}_tv")
         else:
-
-            # st.dataframe(threshold)
-        
-            threshold_cut = st.selectbox("Choose Threshold", threshold, key=gui_key["threshold"])
-            st.subheader("Bug exist, under fix. Please select key-in")
-            st.write("Threshold by select: %s" % threshold_cut)
-
-        # y_pred_code = y_predict.map(lambda x: 1 if x >= threshold_cut else 0)
-        y_pred_code = (y_predict > threshold_cut).astype(int)
-        # Calculate accuracy and confusion matrix with the threshold code
-        # acc = accuracy_score(y, y_pred_code)
-        # cof_mx = confusion_matrix(y, y_pred_code)
+            cut = st.selectbox("Choose Threshold", thresholds, key=f"{key}_ts")
+        st.write(f"Threshold value is: {cut}")
+        y_code = (y_pred >= cut).astype(int)
     else:
-        y_pred_code = y_predict.copy()
-        # Calculate accuracy and confusion matrix
-        # acc = accuracy_score(y, y_predict)
-        # cof_mx = confusion_matrix(y, y_predict)
+        y_code = y_pred
 
-    acc = accuracy_score(y, y_pred_code)
-    cof_mx = confusion_matrix(y, y_pred_code)
-    df_cof_mx = pd.DataFrame(cof_mx)  # Convert confusion matrix to DataFrame
-    # Rename columns and index for better readability
-    df_cof_mx = df_cof_mx.rename(columns={0: "Predict Pass", 1: "Predict Fail"}, index={0: "Real Pass", 1: "Real Fail"})
-    
-    # Calculate risk value
-    risk_qty = cof_mx[1, 0]
-    risk = risk_qty / y_pred_code.size
-
-    # Display accuracy, risk, and confusion matrix
-    st.markdown("### Accuracy is: %s" % round(acc, 4))
-    st.markdown("### Risk is: %s" % round(risk, 4))
+    cm = confusion_matrix(y, y_code, labels=[0, 1])
+    df_cm = pd.DataFrame(cm, index=["Real Pass", "Real Fail"], columns=["Predict Pass", "Predict Fail"])
+    st.markdown(f"### Accuracy is: {accuracy_score(y, y_code):.4f}")
+    st.markdown(f"### Risk is: {cm[1, 0] / y_code.size:.4f}")
     st.markdown("### Confusion Matrix:")
-    st.dataframe(df_cof_mx)
+    st.dataframe(df_cm)
+    st.divider()
 
-    st.markdown("---")  # Add a horizontal rule
-
-    preci_recall = st.checkbox("Use Precision & Recall Method")
-
-    if preci_recall == True:
-
-        precision, recall, thresholds = precision_recall_curve(y, y_pred_code)
-        ap = average_precision_score(y, y_pred_code)
-        pr_auc = auc(recall, precision) 
-        f1_s = f1_score(y, y_pred_code)
-        st.markdown("### Average Precision is: %s" % round(ap, 4))
-        st.markdown("### Precision-Recall AUC is: %s" % round(pr_auc, 4))
-        st.markdown("### F1 Socre is: %s" % round(f1_s, 4))
-
-        # dict_pr = {"Precision": precision, "Recall": recall, "Threshold": thresholds}
-        dict_pr = {"Precision": precision, "Recall": recall}
-
-        # Convert the dictionary to a pandas DataFrame
-        df_pr_data = pd.DataFrame.from_dict(dict_pr)
-        st.dataframe(df_pr_data)
-        # st.dataframe(recall)
-        st.dataframe(thresholds)
-        fig_pr = px.line(df_pr_data, x="Recall", y="Precision", markers=False, labels={'label': 'Precision-Recall'}, 
-                        range_x=[0, 1], range_y=[0, 1.1], width=fig_size, height=fig_size)
-    
+    if st.checkbox("Use Precision & Recall Method", key=f"{key}_pr"):
+        precision, recall, _ = precision_recall_curve(y, y_code)
+        st.markdown(f"### Average Precision is: {average_precision_score(y, y_code):.4f}")
+        st.markdown(f"### Precision-Recall AUC is: {auc(recall, precision):.4f}")
+        st.markdown(f"### F1 Socre is: {f1_score(y, y_code):.4f}")
+        df_pr = pd.DataFrame({"Precision": precision, "Recall": recall})
+        st.dataframe(df_pr)
+        fig_pr = px.line(df_pr, x="Recall", y="Precision", range_x=[0, 1], range_y=[0, 1.1], width=640, height=640)
         st.subheader("Precision Recall Figure")
-        st.plotly_chart(fig_pr, use_container_width=True)  # Display the Precision-Recall curve plot
+        st.plotly_chart(fig_pr, width="stretch")
+
+    return df_roc, fig_roc
 
 
-    return df_roc_data, fig_roc  # Return the ROC Data DataFrame and ROC figure plot
-
-
-
-def model_check_figure(df_result, df_pareto=None, t_val=None):
-    """
-    Creates a model check figure with four subplots:
-    1. yhat-residual-plot
-    2. residual-histogram-plot
-    3. residual-sequence-plot
-    4. pareto-plot
-    
-    Parameters:
-    df_result (DataFrame): DataFrame containing 'yhat' and 'resid' columns.
-    df_pareto (DataFrame): DataFrame containing 't-value' and 'factor' columns.
-    t_val (float): The t-value for the Pareto plot's vertical line.
-    fig_size (tuple): A tuple containing the width and height of the figure.
-    
-    Returns:
-    fig (Figure): A Plotly Figure object.
-    """
-    color_def = 'rgba(19, 166, 255, 0.6)'
-    fig_size = [1280, 960]
-
-    # Create subplots layout
+## Figures
+def model_check_figure(df_result, df_bar, ref, bar_title="feature-importance (red line as ref. criteria)"):
+    """2x2 residual diagnostics. df_bar needs 'factor' & 'value'; ref is the red reference line."""
     fig = make_subplots(
         rows=2, cols=2,
         subplot_titles=(
-            "yhat-residual-plot (random better)", 
-            "residual-histogram-plot (normal distribution better)", 
-            "redidual-sequence-plot (random better)", 
-            "feature-importance (red line as ref. criteria)"
-        )
-    )
-
-    # Add yhat-residual scatter plot
-    fig.add_trace(
-        go.Scatter(
-            x=df_result["yhat"], 
-            y=df_result["resid"], 
-            mode="markers", 
-            marker=dict(color=color_def)
+            "yhat-residual-plot (random better)",
+            "residual-histogram-plot (normal distribution better)",
+            "redidual-sequence-plot (random better)",
+            bar_title,
         ),
-        row=1, col=1
     )
+    marker = dict(color=POINT_COLOR)
+    df_bar = df_bar.sort_values("value")
+    fig.add_trace(go.Scatter(x=df_result["yhat"], y=df_result["resid"], mode="markers", marker=marker), row=1, col=1)
+    fig.add_trace(go.Histogram(x=df_result["resid"], marker=marker), row=1, col=2)
+    fig.add_trace(go.Scatter(y=df_result["resid"], mode="lines+markers", marker=marker), row=2, col=1)
+    fig.add_trace(go.Bar(x=df_bar["value"], y=df_bar["factor"], orientation="h", width=0.8, marker=marker), row=2, col=2)
+    fig.add_vline(x=ref, line_width=2, line_dash="dash", line_color="red", row=2, col=2)
 
-    # Add residual histogram plot
-    fig.add_trace(
-        go.Histogram(
-            x=df_result["resid"],
-            marker=dict(color=color_def)
-        ),
-        row=1, col=2
-    )
+    for (r, c), (xt, yt) in {
+        (1, 1): ("Y-hat", "Residual"),
+        (1, 2): ("Residual", "Count"),
+        (2, 1): ("Sequence", "Residual"),
+        (2, 2): ("Factor Importance", "Factor"),
+    }.items():
+        fig.update_xaxes(title_text=xt, row=r, col=c)
+        fig.update_yaxes(title_text=yt, row=r, col=c)
 
-    # Add residual sequence plot
-    fig.add_trace(
-        go.Scatter(
-            y=df_result["resid"], 
-            mode="lines+markers",
-            marker=dict(color=color_def)
-        ),
-        row=2, col=1
-    )
-
-    # if df_pareto:
-    # Add Pareto plot
-    df_pareto = df_pareto.sort_values(by="value", ascending=True)
-    fig.add_trace(
-        go.Bar(
-            x=df_pareto["value"], 
-            y=df_pareto["factor"], 
-            orientation='h', 
-            width=0.8,
-            marker=dict(color=color_def)
-        ),
-        row=2, col=2
-    )
-    
-    # Add vertical line to Pareto plot
-    fig.add_vline(
-        x=t_val, 
-        line_width=2, 
-        line_dash='dash', 
-        line_color='red',
-        row=2, col=2
-    )
-
-    # Update x and y axis labels
-    fig.update_xaxes(title_text="Y-hat", row=1, col=1)
-    fig.update_yaxes(title_text="Residual", row=1, col=1)
-
-    fig.update_xaxes(title_text="Residual", row=1, col=2)
-    fig.update_yaxes(title_text="Count", row=1, col=2)
-
-    fig.update_xaxes(title_text="Sequence", row=2, col=1)
-    fig.update_yaxes(title_text="Residual", row=2, col=1)
-
-    # if df_pareto:
-    fig.update_xaxes(title_text="Factor Importance", row=2, col=2)
-    fig.update_yaxes(title_text="Factor", row=2, col=2)
-
-    # Update overall layout
-    fig.update_layout(
-        height=fig_size[1], 
-        width=fig_size[0],
-        title_text="Model Check Figure",
-        showlegend=False
-    )
-    
+    fig.update_layout(height=960, width=1280, title_text="Model Check Figure", showlegend=False)
     return fig
-# def backend_pefmce(y, prediction, p):
-  
-#   # Target: calculate model metrics (r2, mape, rmse)
-#   # Input: actual Y, predict Y, factor number
-#   # Use sklearn metrice module to calculate metrics
-
-#     model_r2_score = r2_score(y, prediction)
-#     n = len(y)
-
-#     adj_r_squared = 1 - (1 - model_r2_score) * (n-1)/(n-p-1)
-
-#     model_mape_score = mean_absolute_percentage_error(y, prediction)
-
-#     epsilon = np.finfo(np.float64).eps
-#     mape = np.abs(prediction - y) / np.maximum(np.abs(y), epsilon)
-#     mape_series = pd.Series(mape)
-
-#     model_rmse_score = mean_squared_error(y, prediction, squared=False)
-
-#     return model_r2_score, adj_r_squared, model_rmse_score, model_mape_score, mape_series
