@@ -8,7 +8,7 @@ from scipy.stats import gaussian_kde
 
 import tools
 
-FIG_TYPES = ["box", "violin", "histogram", "distribution", "pair plot", "interaction(DOE)", "scatter", "bubble", "bubble animate"]
+FIG_TYPES = ["box", "violin", "histogram", "distribution", "pair plot", "interaction(DOE)", "scatter", "line", "bubble", "bubble animate"]
 TEMPLATE = "simple_white"
 
 
@@ -31,6 +31,9 @@ def controls(fig_type, cols):
             para["focus"] = st.multiselect("### Choose focus factor", x_list)
         else:
             para["x"] = st.selectbox("### Choose x variable", x_list)
+            if fig_type == "line":
+                para["markers"] = st.checkbox("Show markers", value=True)
+                para["sort_x"] = st.checkbox("Sort by x", value=True)
             if fig_type in ("bubble", "bubble animate"):
                 para["size"] = st.selectbox("### Choose bubble size", x_list)
             if fig_type == "bubble animate":
@@ -89,6 +92,9 @@ def build_figure(fig_type, df, category, para, width, height):
     elif fig_type == "distribution":
         groups = [(x, df[x])] if category is None else [(str(k), g[x]) for k, g in df.groupby(category)]
         fig = distribution_figure([(k, g.to_numpy(dtype=float)) for k, g in groups], para["bin_size"], width, height)
+    elif fig_type == "line":
+        df_line = df.sort_values(x) if para["sort_x"] else df
+        fig = px.line(df_line, x=x, y=y, markers=para["markers"], **hover, **common)
     elif fig_type == "pair plot":
         if not para["focus"]:
             st.info("Please choose at least one focus factor.")
@@ -103,7 +109,7 @@ def build_figure(fig_type, df, category, para, width, height):
         fig = px.scatter(df, x=x, y=y, size=para.get("size"), size_max=45,
                          animation_frame=para.get("animate"), **common)
 
-    if fig_type in ("box", "violin", "scatter", "bubble", "bubble animate"):
+    if fig_type in ("box", "violin", "scatter", "line", "bubble", "bubble animate"):
         fig.update_layout(xaxis_title=x, yaxis_title=y, font=dict(family="Courier New, monospace", size=18),
                           yaxis=dict(tickfont=dict(size=25)), xaxis=dict(tickfont=dict(size=15)))
     return fig
